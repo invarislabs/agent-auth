@@ -272,3 +272,38 @@ def test_save_load_encrypted_and_split(tmp_path, registry):
     admin = AgentIdentity.load(keys, "persist", passphrase="hunter2", recovery_dir=vault)
     reg.rotate(admin)
     assert reg.whoami(admin)["kid"].endswith("#key-1")
+
+
+# --------------------------------------------------------------------------- #
+# client compatibility
+# --------------------------------------------------------------------------- #
+
+
+def test_auth_works_with_plain_httpx_client():
+    """TestClient uses httpx2 when installed; make sure plain httpx clients are still supported."""
+    import httpx
+
+    ident, _ = AgentIdentity.create(name="plain")
+    verifier = RequestVerifier(lambda d: (ident.current_key.public_multikey, ident.kid), audiences={"svc.example"})
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        agent = verifier.verify(
+            authorization=request.headers["authorization"],
+            method=request.method,
+            path=request.url.raw_path.decode(),
+            body=request.content,
+        )
+        return httpx.Response(200, json={"did": agent.did})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        r = client.post("http://svc.example/do?x=1", json={"a": 1}, auth=ident.httpx_auth())
+    assert r.json() == {"did": ident.did}
+
+
+def test_auth_is_callable_for_httpx2_style_clients():
+    ident, _ = AgentIdentity.create(name="callable")
+    import httpx
+
+    req = httpx.Request("GET", "http://svc.example/x")
+    signed = ident.httpx_auth()(req)
+    assert signed is req and req.headers["authorization"].startswith("AgentSig ")

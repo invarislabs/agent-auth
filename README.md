@@ -1,5 +1,7 @@
 # AgentAuth
 
+[![CI](https://github.com/invarislabs/agent-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/invarislabs/agent-auth/actions/workflows/ci.yml)
+
 Cryptographic identities and delegated authority for autonomous AI agents.
 
 Each agent gets a **self-certifying DID** backed by an Ed25519 keypair. It proves who it is by **signing every request**, so no API key or bearer token ever crosses the wire. Keys can be **rotated** safely, and an agent can be **killed** by itself or by the human or org that owns it. Anyone can check all of this without trusting the registry.
@@ -130,7 +132,7 @@ Amounts are integers in the smallest unit (such as cents); floats are never sign
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                  # 74 tests
+python -m pytest                        # 76 tests (use `python -m` so the venv's pytest runs)
 
 agentauth serve --db agentauth.db &     # registry on 127.0.0.1:8000
 

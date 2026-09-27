@@ -184,7 +184,13 @@ class AgentIdentity:
 
 
 class AgentSigAuth(httpx.Auth):
-    """httpx auth hook: signs every outgoing request with the agent's key."""
+    """Signs every outgoing request with the agent's key (and presents a grant chain, if any).
+
+    Works with both `httpx` and `httpx2` clients: httpx uses it as an
+    `httpx.Auth` (via `auth_flow`), while httpx2 — which doesn't recognise
+    httpx's Auth class — accepts any callable that takes and returns a request
+    (via `__call__`).
+    """
 
     requires_request_body = True
 
@@ -192,13 +198,20 @@ class AgentSigAuth(httpx.Auth):
         self.identity = identity
         self.grants = grants.encode() if grants is not None else ""
 
-    def auth_flow(self, request: httpx.Request):
+    def sign(self, request):
+        """Add the AgentSig (and AgentGrant) headers to an httpx or httpx2 request, in place."""
         if self.grants:
             request.headers[GRANT_HEADER] = self.grants
         request.headers["Authorization"] = self.identity.authorization(
             request.method, str(request.url), request.content, self.grants
         )
-        yield request
+        return request
+
+    def auth_flow(self, request: httpx.Request):
+        yield self.sign(request)
+
+    def __call__(self, request):
+        return self.sign(request)
 
 
 class RegistryError(Exception):
