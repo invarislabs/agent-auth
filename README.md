@@ -13,6 +13,19 @@ did:agent:QmfJZCnucexGhSZqdsAcKnFcv4RxyhPFMUiGjQmDRiMxux
           └─ sha2-256 multihash of the agent's signed inception event
 ```
 
+## Documentation
+
+| | |
+|---|---|
+| [Why AgentAuth](docs/why.md) | The problem, and why API keys, OAuth and mTLS fall short for agents |
+| [Architecture](docs/architecture.md) | Components, request flow, how authority and limits propagate |
+| [Protocol spec](docs/protocol.md) | Wire formats and verification rules, for other implementations |
+| [Integration guide](docs/integration-guide.md) | Adding AgentAuth to an agent or a service |
+| [Threat model](docs/threat-model.md) | What's defended against, and the known gaps |
+| [Operations](docs/operations.md) | Running the registry, key management, incident response, scaling |
+| [Design decisions](docs/design-decisions.md) | Why things are the way they are |
+| [Glossary](docs/glossary.md) · [Roadmap](docs/roadmap.md) | |
+
 ## Why not just API keys?
 
 | Problem with API keys for agents | AgentAuth |
@@ -279,6 +292,7 @@ agentauth/
   store.py         SQLite persistence
   server.py        Registry (FastAPI)
   cli.py           `agentauth` command
+docs/              Why, architecture, protocol spec, guides, threat model, decisions
 examples/          tool_service.py: a demo service with scoped, resource- and spend-limited endpoints
 tests/             End-to-end tests (attacks included)
 ```
@@ -313,9 +327,4 @@ tests/             End-to-end tests (attacks included)
 
 ## Roadmap
 
-1. ~~Scoped, short-lived capability grants~~ ✅ v0.2
-2. ~~Delegation chains with attenuation and cascading revocation~~ ✅ v0.2
-3. ~~Resource, spend, rate and use limits~~ ✅ v0.3
-4. **Hash-chained audit log** of authorized actions, recording the full principal → agent chain.
-5. Production hardening: Redis nonce cache and usage ledger, Postgres, registration rate limits, multi-witness receipts, KMS-held recovery keys.
-6. A written spec and a TypeScript verifier; MCP integration.
+Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3). Next up: an audit log, production hardening (Redis/Postgres), protection against a dishonest registry, KMS-held recovery keys, and a TypeScript verifier. See the full [roadmap](docs/roadmap.md).
