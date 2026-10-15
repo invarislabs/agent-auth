@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/invarislabs/agent-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/invarislabs/agent-auth/actions/workflows/ci.yml)
 
-Cryptographic identities and delegated authority for autonomous AI agents.
+Cryptographic identities and delegated authority for autonomous AI agents. Built and maintained by [Invaris Labs](https://www.invarislabs.com/).
 
 Each agent gets a **self-certifying DID** backed by an Ed25519 keypair. It proves who it is by **signing every request**, so no API key or bearer token ever crosses the wire. Keys can be **rotated** safely, and an agent can be **killed** by itself or by the human or org that owns it. Anyone can check all of this without trusting the registry.
 
@@ -328,3 +328,9 @@ tests/             End-to-end tests (attacks included)
 ## Roadmap
 
 Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3). Next up: an audit log, production hardening (Redis/Postgres), protection against a dishonest registry, KMS-held recovery keys, and a TypeScript verifier. See the full [roadmap](docs/roadmap.md).
+
+## License
+
+AgentAuth is licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for copyright and trademark terms. Contributions are accepted under the [Contributor License Agreement](CLA.md).
+
+Copyright 2026 [Invaris Labs](https://www.invarislabs.com/).

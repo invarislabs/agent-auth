@@ -1,7 +1,7 @@
 # AgentAuth Individual Contributor License Agreement
 
 Thank you for your interest in contributing to AgentAuth (the "Project"), maintained by
-Invaris Labs ("we", "us"). This Contributor License Agreement ("Agreement") describes the terms
+Invaris Labs (https://www.invarislabs.com/) ("we", "us"). This Contributor License Agreement ("Agreement") describes the terms
 under which you make a Contribution to the Project. It protects you, other contributors, and
 Invaris Labs, and it makes clear what rights come with a Contribution.
 
