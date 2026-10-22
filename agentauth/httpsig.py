@@ -25,20 +25,33 @@ ever crosses the wire.
 
 from __future__ import annotations
 
+import logging
 import re
 import secrets
 import threading
 import time
+from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Optional, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
-from .crypto import KeyPair, digest, verify
+from .crypto import Signer, digest, verify
+from .identity import is_agent_did
 
 SCHEME = "AgentSig"
 DEFAULT_MAX_SKEW = 120  # seconds
+MAX_HEADER_BYTES = 4096
+REQUIRED_PARAMS = ("did", "kid", "aud", "ts", "nonce", "sig")
 
-_PARAM_RE = re.compile(r'(\w+)="([^"]*)"')
+_PARAM_RE = re.compile(r'\s*([A-Za-z0-9_]+)="([^"]*)"\s*(?:,|\Z)')
+_TS_RE = re.compile(r"\A[0-9]{1,15}\Z")
+# >= 16 characters (the reference client sends 22 base64url characters = 128 bits).
+_NONCE_RE = re.compile(r"\A[A-Za-z0-9_\-.~+/=]{16,128}\Z")
+_KID_RE = re.compile(r"\A(.+)#key-(0|[1-9][0-9]{0,8})\Z")
+_AUD_RE = re.compile(r"\A[^\s,\"]{1,255}\Z")
+
+log = logging.getLogger("agentauth.httpsig")
 
 
 class AuthError(Exception):
@@ -68,7 +81,7 @@ def sign_request(
     *,
     did: str,
     kid: str,
-    key: KeyPair,
+    key: Signer,
     method: str,
     url: str,
     body: bytes = b"",
@@ -79,6 +92,8 @@ def sign_request(
     """Return the value for the Authorization header."""
     parts = urlsplit(url)
     audience = parts.netloc
+    if "@" in audience:
+        raise ValueError("URLs with userinfo are not supported for signed requests")
     path = parts.path or "/"
     if parts.query:
         path += "?" + parts.query
@@ -86,44 +101,101 @@ def sign_request(
     nonce = nonce or secrets.token_urlsafe(16)
     sig = key.sign(signing_string(method, audience, path, ts_s, nonce, body, grants))
     params = {"did": did, "kid": kid, "aud": audience, "ts": ts_s, "nonce": nonce, "sig": sig}
+    for k, v in params.items():
+        if '"' in v or "\n" in v or "\r" in v:
+            raise ValueError(f"{k} must not contain quotes or newlines")
     return SCHEME + " " + ",".join(f'{k}="{v}"' for k, v in params.items())
 
 
 def parse_authorization(header: str) -> dict:
-    if not header or not header.startswith(SCHEME + " "):
+    """Strictly parse an AgentSig header. Duplicate or malformed parameters are rejected."""
+    if not isinstance(header, str) or not header.startswith(SCHEME + " "):
         raise AuthError(f"missing or non-{SCHEME} Authorization header")
-    params = dict(_PARAM_RE.findall(header[len(SCHEME) + 1 :]))
-    missing = {"did", "kid", "aud", "ts", "nonce", "sig"} - params.keys()
+    if len(header) > MAX_HEADER_BYTES:
+        raise AuthError("Authorization header too large")
+    rest = header[len(SCHEME) + 1 :]
+    params: dict = {}
+    pos = 0
+    while pos < len(rest):
+        m = _PARAM_RE.match(rest, pos)
+        if not m or m.end() == pos:
+            raise AuthError("malformed Authorization header")
+        k, v = m.group(1), m.group(2)
+        if k in params:
+            raise AuthError(f"duplicate Authorization parameter {k!r}")
+        params[k] = v
+        pos = m.end()
+    missing = set(REQUIRED_PARAMS) - params.keys()
     if missing:
         raise AuthError(f"Authorization header missing: {', '.join(sorted(missing))}")
     return params
 
 
 def _kid_seq(kid: str) -> int:
-    try:
-        return int(kid.rsplit("#key-", 1)[1])
-    except (IndexError, ValueError):
-        return -1
+    m = _KID_RE.match(kid) if isinstance(kid, str) else None
+    return int(m.group(2)) if m else -1
+
+
+# --------------------------------------------------------------------------- #
+# Replay protection
+# --------------------------------------------------------------------------- #
+
+
+class ReplayCacheUnavailable(Exception):
+    """The replay cache can't give a safe answer (backend down, or full). Fail closed."""
+
+
+@runtime_checkable
+class ReplayCache(Protocol):
+    """Interface for nonce stores. `check_and_store` must be atomic across every
+    process that verifies requests for the same audiences: return True the
+    first time (did, nonce) is seen within the window, False afterwards.
+    Raise `ReplayCacheUnavailable` (or any exception) when unsure; the request
+    is then refused with 503."""
+
+    def check_and_store(self, did: str, nonce: str) -> bool: ...
 
 
 class NonceCache:
-    """In-memory replay cache. Swap for Redis/memcached when running >1 replica."""
+    """In-memory, single-process replay cache.
 
-    def __init__(self, ttl: int):
+    Only safe when exactly one process verifies requests for an audience. For
+    more than one replica or worker, use `agentauth.backends.redis.RedisNonceCache`.
+
+    Entries all share one TTL, so insertion order is expiry order and pruning is
+    O(1) amortized. When `max_entries` unexpired nonces are held, new requests
+    are refused rather than evicting live entries (which would allow replays).
+    """
+
+    def __init__(self, ttl: int, max_entries: int = 1_000_000):
         self.ttl = ttl
-        self._seen: dict[tuple[str, str], float] = {}
+        self.max_entries = max_entries
+        self._seen: OrderedDict = OrderedDict()
         self._lock = threading.Lock()
+
+    def _prune(self, now: float) -> None:
+        seen = self._seen
+        while seen:
+            k, exp = next(iter(seen.items()))
+            if exp > now:
+                break
+            seen.popitem(last=False)
 
     def check_and_store(self, did: str, nonce: str) -> bool:
         now = time.time()
         with self._lock:
-            if len(self._seen) > 10_000:
-                self._seen = {k: exp for k, exp in self._seen.items() if exp > now}
+            self._prune(now)
             key = (did, nonce)
-            if key in self._seen and self._seen[key] > now:
+            if key in self._seen:
                 return False
+            if len(self._seen) >= self.max_entries:
+                raise ReplayCacheUnavailable("replay cache is full")
             self._seen[key] = now + self.ttl
             return True
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._seen)
 
 
 @dataclass
@@ -138,6 +210,17 @@ class VerifiedAgent:
 KeyResolver = Callable[[str], Optional[tuple]]
 
 
+def resolve_or_fail(resolve_key: KeyResolver, did: str, error=AuthError) -> Optional[tuple]:
+    """Call a key resolver, turning infrastructure failures into a 503 (fail closed)."""
+    try:
+        return resolve_key(did)
+    except error:
+        raise
+    except Exception as e:  # registry down, equivocation detected, bad response, ...
+        log.warning("key resolution failed for %s: %s", did, e)
+        raise error(f"could not resolve {did}: {e}", 503) from None
+
+
 class RequestVerifier:
     """Verifies signed agent requests. Usable by the registry or any relying party."""
 
@@ -146,35 +229,66 @@ class RequestVerifier:
         resolve_key: KeyResolver,
         audiences: set,
         max_skew: int = DEFAULT_MAX_SKEW,
-        nonce_cache: Optional[NonceCache] = None,
+        nonce_cache: Optional[ReplayCache] = None,
+        *,
+        bind_host: bool = False,
     ):
+        """`bind_host=True` additionally requires the signed audience to equal the Host the
+        request arrived on (integrations pass it). Turn it on when one app serves several
+        audiences and routes by Host; leave it off when a proxy rewrites Host."""
+        if not audiences:
+            raise ValueError("RequestVerifier needs at least one audience")
+        if not 0 < max_skew <= 3600:
+            raise ValueError("max_skew must be between 1 and 3600 seconds")
         self.resolve_key = resolve_key
         self.audiences = {a.lower() for a in audiences}
         self.max_skew = max_skew
-        self.nonces = nonce_cache or NonceCache(ttl=2 * max_skew)
+        self.bind_host = bind_host
+        # A request stamped max_skew in the future stays valid until 2*max_skew after we first
+        # see it; the nonce must be remembered at least that long (+1 s for rounding).
+        self.min_nonce_ttl = 2 * max_skew + 1
+        if nonce_cache is None:
+            nonce_cache = NonceCache(ttl=self.min_nonce_ttl)
+        ttl = getattr(nonce_cache, "ttl", None)
+        if isinstance(ttl, (int, float)) and ttl < self.min_nonce_ttl:
+            raise ValueError(
+                f"replay cache ttl ({ttl}s) is shorter than the replay window ({self.min_nonce_ttl}s "
+                f"for max_skew={max_skew}); requests could be replayed after their nonce expires"
+            )
+        self.nonces = nonce_cache
 
     def verify(
-        self, *, authorization: str, method: str, path: str, body: bytes, grants: str = ""
+        self, *, authorization: str, method: str, path: str, body: bytes, grants: str = "",
+        host: Optional[str] = None,
     ) -> VerifiedAgent:
         p = parse_authorization(authorization)
-        if p["aud"].lower() not in self.audiences:
-            raise AuthError(f"request was signed for a different audience ({p['aud']})")
-        try:
-            ts = int(p["ts"])
-        except ValueError:
-            raise AuthError("ts must be an integer") from None
-        if abs(time.time() - ts) > self.max_skew:
+        if not _AUD_RE.match(p["aud"]) or p["aud"].lower() not in self.audiences:
+            raise AuthError(f"request was signed for a different audience ({p['aud'][:100]})")
+        if self.bind_host and (host is None or host.lower() != p["aud"].lower()):
+            raise AuthError("request was signed for a different host than the one it was sent to")
+        if not _TS_RE.match(p["ts"]):
+            raise AuthError("ts must be an integer number of seconds")
+        if abs(time.time() - int(p["ts"])) > self.max_skew:
             raise AuthError("request timestamp outside allowed window")
+        if not _NONCE_RE.match(p["nonce"]):
+            raise AuthError("nonce must be 16-128 URL-safe characters")
+        if not is_agent_did(p["did"]):
+            raise AuthError("did is not a did:agent identifier")
+        m = _KID_RE.match(p["kid"])
+        if not m or m.group(1) != p["did"]:
+            raise AuthError("kid must be '<did>#key-<n>'")
 
-        resolved = self.resolve_key(p["did"])
+        resolved = resolve_or_fail(self.resolve_key, p["did"])
         if resolved is None:
             raise AuthError("unknown or deactivated agent")
         key, kid = resolved
         if p["kid"] != kid and _kid_seq(p["kid"]) > _kid_seq(kid) and hasattr(self.resolve_key, "invalidate"):
             # Caller claims a newer key than our cache holds: the agent probably
             # just rotated. Refresh once instead of rejecting for a whole TTL.
+            # (Resolvers rate-limit forced refreshes, so this can't be used to
+            # hammer the registry.)
             self.resolve_key.invalidate(p["did"])
-            resolved = self.resolve_key(p["did"])
+            resolved = resolve_or_fail(self.resolve_key, p["did"])
             if resolved is None:
                 raise AuthError("unknown or deactivated agent")
             key, kid = resolved
@@ -185,6 +299,11 @@ class RequestVerifier:
         if not verify(key, msg, p["sig"]):
             raise AuthError("bad request signature")
         # Only burn the nonce once the signature checks out, so garbage can't fill the cache.
-        if not self.nonces.check_and_store(p["did"], p["nonce"]):
+        try:
+            fresh = self.nonces.check_and_store(p["did"], p["nonce"])
+        except Exception as e:
+            log.error("replay cache failure: %s", e)
+            raise AuthError("replay protection unavailable", 503) from None
+        if not fresh:
             raise AuthError("replayed request (nonce already used)")
         return VerifiedAgent(did=p["did"], kid=kid, key=key, audience=p["aud"].lower())
