@@ -29,6 +29,8 @@ from typing import Optional
 
 MAX_RESOURCES = 32
 MAX_RESOURCE_LEN = 256
+MAX_UNIT_LEN = 64
+MAX_SAFE_INT = 9007199254740991  # 2**53 - 1: the largest integer every JSON parser keeps exact
 
 
 class LimitError(Exception):
@@ -56,6 +58,7 @@ def _unsafe_resource(r: str) -> bool:
     return (
         not isinstance(r, str)
         or not r
+        or len(r) > 4 * MAX_RESOURCE_LEN
         or "*" in r
         or any(ord(c) < 32 for c in r)
         or any(seg in ("..", ".") for seg in r.replace("\\", "/").split("/"))
@@ -81,8 +84,8 @@ def pattern_covers(parent: str, child: str) -> bool:
 
 
 def _pos_int(v, name: str) -> int:
-    if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
-        raise LimitError(f"{name} must be a positive integer", 400)
+    if not isinstance(v, int) or isinstance(v, bool) or not 0 < v <= MAX_SAFE_INT:
+        raise LimitError(f"{name} must be a positive integer (at most 2**53-1)", 400)
     return v
 
 
@@ -108,7 +111,7 @@ class Limits:
         total=None,
         rate=None,  # (count, per_seconds)
         uses=None,
-    ) -> "Limits":
+    ) -> Limits:
         d: dict = {}
         if resources is not None:
             d["resources"] = list(resources)
@@ -125,7 +128,7 @@ class Limits:
         return cls.from_dict(d)
 
     @classmethod
-    def from_dict(cls, d: Optional[dict]) -> "Limits":
+    def from_dict(cls, d: Optional[dict]) -> Limits:
         if d is None:
             return cls()
         if not isinstance(d, dict):
@@ -144,8 +147,9 @@ class Limits:
             sp = d["spend"]
             if not isinstance(sp, dict) or set(sp) - {"unit", "per_call", "total"}:
                 raise LimitError("spend must be {unit, per_call?, total?}", 400)
-            if not isinstance(sp.get("unit"), str) or not sp["unit"]:
-                raise LimitError("spend.unit is required", 400)
+            u = sp.get("unit")
+            if not isinstance(u, str) or not u or len(u) > MAX_UNIT_LEN or any(c.isspace() or ord(c) < 32 for c in u):
+                raise LimitError("spend.unit is required (1-64 characters, no whitespace)", 400)
             if "per_call" not in sp and "total" not in sp:
                 raise LimitError("spend needs per_call and/or total", 400)
             kw["spend_unit"] = sp["unit"]
@@ -191,7 +195,7 @@ class Limits:
 
     # -- attenuation -------------------------------------------------------- #
 
-    def narrowing_violation(self, child: "Limits") -> Optional[str]:
+    def narrowing_violation(self, child: Limits) -> Optional[str]:
         """Return why `child` would loosen these limits, or None if it only tightens them."""
         if self.resources is not None:
             if child.resources is None:
@@ -210,13 +214,13 @@ class Limits:
             if child.rate_count is None:
                 return "child drops the parent's rate limit"
             # child.count / child.per <= parent.count / parent.per
-            if child.rate_count * self.rate_per > self.rate_count * child.rate_per:
+            if child.rate_count * (self.rate_per or 1) > self.rate_count * (child.rate_per or 1):
                 return "rate exceeds the parent's"
         if self.uses is not None and (child.uses is None or child.uses > self.uses):
             return "use count exceeds the parent's"
         return None
 
-    def inherit_into(self, child: "Limits") -> "Limits":
+    def inherit_into(self, child: Limits) -> Limits:
         """Fill in any limit the child leaves unset with the parent's value.
 
         Used at issue time so a delegated grant is self-describing. The
@@ -259,21 +263,32 @@ class Limits:
 class UsageLedger:
     """Tracks spend, rate and use counters per (issuer, grant id).
 
-    In-memory and single-process. For more than one replica, implement the
-    same `consume` / `refund` / `usage` interface on Redis or your database
-    (a Lua script or a transaction gives the same all-or-nothing behaviour).
+    In-memory and single-process: counters reset on restart and are not shared
+    between replicas or worker processes. For anything else use
+    `agentauth.backends.redis.RedisUsageLedger`, or implement the same
+    `consume` / `refund` / `usage` interface on your database.
+
+    Counters for a grant are dropped once that grant has expired (it can never
+    be presented again), so memory stays proportional to live grants.
     """
 
-    def __init__(self):
+    def __init__(self, prune_every: int = 1024):
         self._lock = threading.Lock()
         self._spent: dict = {}
         self._uses: dict = {}
         self._calls: dict = {}  # key -> deque of timestamps
+        self._expiry: dict = {}  # key -> unix time after which the grant is unusable
+        self._ops = 0
+        self._prune_every = prune_every
 
-    def consume(self, links: list, amount: int, now: Optional[float] = None) -> None:
+    def consume(
+        self, links: list, amount: int, now: Optional[float] = None, *, expires_at: Optional[dict] = None
+    ) -> None:
         """Atomically charge one call (and `amount`) against every limited link, or none of them.
 
-        `links` is a list of ((issuer, grant_id), Limits).
+        `links` is a list of ((issuer, grant_id), Limits). `expires_at`
+        optionally maps each key to when its grant stops being valid, so its
+        counters can be pruned afterwards.
         """
         now = time.time() if now is None else now
         with self._lock:
@@ -298,6 +313,12 @@ class UsageLedger:
                     self._uses[key] = self._uses.get(key, 0) + 1
                 if lim.rate_count is not None:
                     self._calls.setdefault(key, deque()).append(now)
+                exp = (expires_at or {}).get(key)
+                if exp is not None:
+                    self._expiry[key] = max(self._expiry.get(key, 0), exp)
+            self._ops += 1
+            if self._ops % self._prune_every == 0:
+                self._prune_locked(time.time())
 
     def refund(self, links: list, amount: int) -> None:
         """Give back spend (e.g. the downstream purchase failed). Uses and rate are not refunded."""
@@ -309,3 +330,19 @@ class UsageLedger:
     def usage(self, key: tuple) -> dict:
         with self._lock:
             return {"spent": self._spent.get(key, 0), "uses": self._uses.get(key, 0)}
+
+    def _prune_locked(self, now: float) -> int:
+        dead = [k for k, exp in self._expiry.items() if exp < now]
+        for k in dead:
+            for d in (self._spent, self._uses, self._calls, self._expiry):
+                d.pop(k, None)
+        return len(dead)
+
+    def prune(self, now: Optional[float] = None) -> int:
+        """Drop counters of grants that have expired. Returns how many were dropped."""
+        with self._lock:
+            return self._prune_locked(time.time() if now is None else now)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(set(self._spent) | set(self._uses) | set(self._calls))
