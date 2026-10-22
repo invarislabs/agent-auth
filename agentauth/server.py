@@ -48,6 +48,11 @@ log = logging.getLogger("agentauth.registry")
 access_log = logging.getLogger("agentauth.access")
 
 
+def _log_safe(value: Any) -> str:
+    """Strip line breaks from client-supplied values before logging them (no forged log lines)."""
+    return str(value).replace("\r", "").replace("\n", "")[:256]
+
+
 def _strict_json(raw: bytes) -> Any:
     """Parse JSON, rejecting NaN/Infinity and duplicate object keys."""
 
@@ -294,15 +299,19 @@ def create_app(
             store.check_schema()
             checks["database"] = "ok"
         except SchemaError as e:
-            checks["database"] = f"schema: {e}"
+            # Details go to the log, not to unauthenticated callers.
+            log.warning("readiness: %s", e)
+            checks["database"] = "schema not current"
         except Exception as e:
-            checks["database"] = f"error: {type(e).__name__}"
+            log.warning("readiness: database check failed: %s", type(e).__name__)
+            checks["database"] = "unavailable"
         if redis_client is not None:
             try:
                 redis_client.ping()
                 checks["redis"] = "ok"
             except Exception as e:
-                checks["redis"] = f"error: {type(e).__name__}"
+                log.warning("readiness: redis check failed: %s", type(e).__name__)
+                checks["redis"] = "unavailable"
         ok = all(v == "ok" for v in checks.values())
         return JSONResponse({"ok": ok, "checks": checks}, status_code=200 if ok else 503)
 
@@ -347,7 +356,7 @@ def create_app(
             m_events.inc("inception", "conflict")
             raise HTTPException(409, "identity already registered") from None
         m_events.inc("inception", "accepted")
-        log.info("identity registered", extra={"did": state.did, "controller": state.controller})
+        log.info("identity registered", extra={"did": _log_safe(state.did), "controller": _log_safe(state.controller)})
         return state.resolution_result()
 
     @app.get("/v1/identities")
@@ -377,7 +386,7 @@ def create_app(
             m_events.inc(etype, "conflict")
             raise HTTPException(409, "concurrent update; fetch the log and retry") from None
         m_events.inc(etype, "accepted")
-        log.info("key event accepted", extra={"did": did, "type": etype, "seq": new_state.seq})
+        log.info("key event accepted", extra={"did": _log_safe(did), "type": _log_safe(etype), "seq": new_state.seq})
         return new_state.resolution_result()
 
     @app.get("/v1/identities/{did}")
@@ -423,7 +432,8 @@ def create_app(
             raise HTTPException(e.status, str(e)) from None
         created = store.add_revocation(body["iss"], body["grant"], body["ts"], event)
         m_revocations.inc("accepted" if created else "duplicate")
-        log.info("grant revoked", extra={"issuer": body["iss"], "grant": body["grant"], "new": created})
+        log.info("grant revoked", extra={"issuer": _log_safe(body["iss"]), "grant": _log_safe(body["grant"]),
+                                         "new": created})
         return {"issuer": body["iss"], "grant": body["grant"], "revoked": True, "new": created}
 
     @app.post("/v1/revocations/check")

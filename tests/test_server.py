@@ -32,7 +32,7 @@ def test_settings_from_env(tmp_path):
     assert s.rate_limit_writes == (10, 60) and s.rate_limit_reads is None
     assert s.registration_token == "s" * 32
     d = s.describe()
-    assert "hunter2" not in json.dumps(d) and d["registration"] == "token"
+    assert "hunter2" not in json.dumps(d) and "s" * 32 not in json.dumps(d) and "registration" not in d
 
 
 def test_legacy_db_variable_still_works():

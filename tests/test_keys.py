@@ -140,10 +140,10 @@ def test_preplanted_symlink_is_not_followed(tmp_path):
     assert not target.exists()
 
 
-def test_world_readable_key_file_warns(tmp_path):
+def test_group_readable_key_file_warns(tmp_path):
     kp = KeyPair.generate()
     write_key_file(tmp_path / "k.json", did="d", role="current", key=kp, extra={}, passphrase=None)
-    os.chmod(tmp_path / "k.json", 0o644)
+    os.chmod(tmp_path / "k.json", 0o640)  # any group/other access triggers the warning
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         read_key_file(tmp_path / "k.json", None)

@@ -133,7 +133,8 @@ class Settings:
             raise ConfigError("AGENTAUTH_REDIS_URL must be a redis://, rediss:// or unix:// URL")
 
     def describe(self) -> dict:
-        """Settings safe to log (no secrets, no credentials in URLs)."""
+        """Settings safe to log (no secrets, no credentials in URLs; nothing derived from the
+        registration token — /v1/info reports the registration mode)."""
         return {
             "database": _redact(self.database_url),
             "audiences": sorted(self.audiences),
@@ -144,7 +145,6 @@ class Settings:
             "rate_limit_writes": self.rate_limit_writes,
             "rate_limit_reads": self.rate_limit_reads,
             "trusted_proxy_hops": self.trusted_proxy_hops,
-            "registration": "token" if self.registration_token else "open",
             "metrics": self.metrics_enabled,
         }
 
