@@ -7,9 +7,11 @@ can re-implement verification in another language.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
-from typing import Any
+import re
+from typing import Any, Protocol, runtime_checkable
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
@@ -41,6 +43,8 @@ def b58encode(data: bytes) -> str:
 
 
 def b58decode(s: str) -> bytes:
+    if not isinstance(s, str):
+        raise ValueError("base58 input must be a string")
     n = 0
     for c in s:
         if c not in _B58_INDEX:
@@ -57,7 +61,7 @@ def multibase_encode(data: bytes) -> str:
 
 
 def multibase_decode(s: str) -> bytes:
-    if not s.startswith("z"):
+    if not isinstance(s, str) or not s.startswith("z"):
         raise ValueError("only base58btc multibase ('z') is supported")
     return b58decode(s[1:])
 
@@ -66,8 +70,28 @@ def b64u(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
+_B64U_RE = re.compile(r"\A[A-Za-z0-9_-]*\Z")
+
+# Largest integer every JSON implementation represents exactly (2**53 - 1).
+MAX_SAFE_INT = 9007199254740991
+
+
 def b64u_decode(s: str) -> bytes:
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+    """Strict, canonical base64url decoding (no padding, no stray characters).
+
+    The standard library silently discards characters outside the alphabet and
+    accepts non-zero trailing bits, so several strings would decode to the same
+    bytes. Verifiers must only accept the one encoding `b64u` produces.
+    """
+    if not isinstance(s, str) or not _B64U_RE.match(s) or len(s) % 4 == 1:
+        raise ValueError("not canonical unpadded base64url")
+    try:
+        out = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+    except (binascii.Error, ValueError):
+        raise ValueError("not canonical unpadded base64url") from None
+    if b64u(out) != s:
+        raise ValueError("not canonical unpadded base64url")
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -95,7 +119,11 @@ def canonical_json(obj: Any) -> bytes:
                 _check(v)
 
     _check(obj)
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    try:
+        return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    except UnicodeEncodeError:
+        # e.g. lone surrogates, which have no UTF-8 encoding
+        raise TypeError("strings in signed payloads must be valid Unicode") from None
 
 
 def sha256(data: bytes) -> bytes:
@@ -112,6 +140,23 @@ def digest(data: bytes) -> str:
 # --------------------------------------------------------------------------- #
 
 
+@runtime_checkable
+class Signer(Protocol):
+    """Anything that can sign with an Ed25519 key.
+
+    `KeyPair` is the in-process implementation. To keep a key in an HSM, KMS
+    or a signing service, wrap it in an object with these two members and pass
+    it wherever the SDK accepts a key (e.g. as a recovery key for rotation).
+    """
+
+    @property
+    def public_multikey(self) -> str: ...
+
+    def sign(self, message: bytes) -> str:
+        """Return the base64url (unpadded) Ed25519 signature over `message`."""
+        ...
+
+
 class KeyPair:
     """An Ed25519 keypair. Public keys are exchanged as multibase multikeys."""
 
@@ -120,11 +165,11 @@ class KeyPair:
         self._pk = private_key.public_key()
 
     @classmethod
-    def generate(cls) -> "KeyPair":
+    def generate(cls) -> KeyPair:
         return cls(Ed25519PrivateKey.generate())
 
     @classmethod
-    def from_seed(cls, seed: bytes) -> "KeyPair":
+    def from_seed(cls, seed: bytes) -> KeyPair:
         return cls(Ed25519PrivateKey.from_private_bytes(seed))
 
     @property
@@ -154,6 +199,8 @@ def public_key_to_multikey(raw: bytes) -> str:
 
 
 def multikey_to_public_key(multikey: str) -> bytes:
+    if not isinstance(multikey, str) or len(multikey) > 64:
+        raise ValueError("not an Ed25519 multikey")
     data = multibase_decode(multikey)
     if not data.startswith(ED25519_PUB_CODEC) or len(data) != 34:
         raise ValueError("not an Ed25519 multikey")
@@ -161,12 +208,27 @@ def multikey_to_public_key(multikey: str) -> bytes:
 
 
 def verify(multikey: str, message: bytes, signature_b64u: str) -> bool:
+    """Verify an Ed25519 signature. Never raises: anything malformed is just invalid."""
     try:
+        sig = b64u_decode(signature_b64u)
+        if len(sig) != 64:
+            return False
         pk = Ed25519PublicKey.from_public_bytes(multikey_to_public_key(multikey))
-        pk.verify(b64u_decode(signature_b64u), message)
+        pk.verify(sig, message)
         return True
     except (InvalidSignature, ValueError, TypeError):
         return False
+
+
+def is_digest(value: Any) -> bool:
+    """Is `value` a well-formed `digest()` string (multibase sha2-256 multihash)?"""
+    if not isinstance(value, str) or not value.startswith("z") or len(value) > 64:
+        return False
+    try:
+        raw = multibase_decode(value)
+    except ValueError:
+        return False
+    return len(raw) == 34 and raw.startswith(SHA2_256_MULTIHASH)
 
 
 def key_commitment(multikey: str) -> str:
