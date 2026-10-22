@@ -133,7 +133,7 @@ Metrics:
 | `agentauth_registry_identities`, `…_active_identities`, `…_stored_revocations` | — | growth |
 | `agentauth_build_info` | `version` | |
 
-Logs are JSON lines on stdout (`AGENTAUTH_LOG_FORMAT=json`): one `request` entry per call (request id, method, path, route, status, client, duration) plus events such as `identity registered`, `key event accepted` and `grant revoked`. The startup line logs the effective configuration with passwords redacted. Every response carries `X-Request-ID`; pass your own to correlate.
+Logs are JSON lines on stdout (`AGENTAUTH_LOG_FORMAT=json`): one `request` entry per call (request id, method, path, route, status, client, duration) plus events such as `identity registered`, `key event accepted` and `grant revoked`. Configuration isn't logged (it comes from the environment, which holds secrets); use `GET /v1/info` and `agentauth db status` to check a running deployment. Every response carries `X-Request-ID`; pass your own to correlate.
 
 On **relying services**, alert on:
 

@@ -163,7 +163,9 @@ def create_app(
 
     @contextlib.asynccontextmanager
     async def lifespan(app):
-        log.info("registry starting", extra={"settings": settings.describe(), "version": __version__})
+        # Configuration isn't logged (it's read from the environment, which may hold secrets);
+        # /v1/info and `agentauth db status` report what operators need.
+        log.info("registry starting", extra={"version": __version__})
         yield
         log.info("registry stopping")
         store.close()
@@ -386,7 +388,8 @@ def create_app(
             m_events.inc(etype, "conflict")
             raise HTTPException(409, "concurrent update; fetch the log and retry") from None
         m_events.inc(etype, "accepted")
-        log.info("key event accepted", extra={"did": _log_safe(did), "type": _log_safe(etype), "seq": new_state.seq})
+        log.info("key event accepted", extra={"did": _log_safe(did), "type": _log_safe(etype),
+                                                "seq": _log_safe(new_state.seq)})
         return new_state.resolution_result()
 
     @app.get("/v1/identities/{did}")
