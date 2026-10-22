@@ -1,28 +1,101 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentauth"
-version = "0.3.0"
+version = "0.4.0"
 description = "Self-certifying, rotatable identities for autonomous AI agents"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
+authors = [{ name = "Invaris Labs" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security :: Cryptography",
+    "Typing :: Typed",
+]
 dependencies = ["cryptography>=42", "httpx>=0.27"]
 
 [project.optional-dependencies]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
-dev = ["agentauth[server]", "pytest>=8", "httpx2>=2.13"]  # httpx2: used by starlette.testclient
+redis = ["redis>=5"]
+postgres = ["psycopg[binary]>=3.1", "psycopg-pool>=3.2"]
+all = ["agentauth[server,redis,postgres]"]
+dev = [
+    "agentauth[all]",
+    "pytest>=8",
+    "pytest-cov>=5",
+    "httpx2>=2.13",  # used by starlette.testclient
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "mcp>=2",  # only for the MCP integration test against a real MCP server
+]
 
 [project.urls]
 Homepage = "https://www.invarislabs.com/"
 Repository = "https://github.com/invarislabs/agent-auth"
+Documentation = "https://github.com/invarislabs/agent-auth/tree/main/docs"
+Changelog = "https://github.com/invarislabs/agent-auth/blob/main/CHANGELOG.md"
 
 [project.scripts]
 agentauth = "agentauth.cli:main"
 
 [tool.setuptools]
-packages = ["agentauth"]
+packages = ["agentauth", "agentauth.backends"]
+
+[tool.setuptools.package-data]
+agentauth = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "redis: needs a Redis server (AGENTAUTH_TEST_REDIS_URL)",
+    "postgres: needs a PostgreSQL server (AGENTAUTH_TEST_POSTGRES_URL)",
+    "e2e: starts real server processes",
+]
+
+[tool.coverage.run]
+source = ["agentauth"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = [
+    "E501",    # long lines are wrapped by judgement, not mechanically
+    "E701", "E702",  # cli.py keeps one-line parser declarations
+    "S101",    # asserts are used in tests
+    "BLE001",  # broad excepts are deliberate where infrastructure errors must fail closed (each is logged)
+    "UP007", "UP045",  # keep Optional[...] for readability on 3.10
+    "B008",    # FastAPI Depends() in defaults is the framework's idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "E731"]
+"examples/*" = ["S104"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["agentauth"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
