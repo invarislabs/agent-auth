@@ -26,15 +26,22 @@ each link is ``b64url(canonical_json(body)) "." b64url(signature)``.
 
 from __future__ import annotations
 
+import inspect
 import json
+import logging
+import re
 import secrets
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional
+from typing import Any, Optional
 
-from .crypto import KeyPair, b64u, b64u_decode, canonical_json, verify
+from .crypto import MAX_SAFE_INT, Signer, b64u, b64u_decode, canonical_json, verify
 from .httpsig import _kid_seq
+from .identity import is_agent_did
 from .limits import LimitError, Limits, UsageLedger
+
+log = logging.getLogger("agentauth.grants")
 
 VERSION = "agentauth-grant/1"
 REVOCATION_VERSION = "agentauth-revocation/1"
@@ -43,6 +50,16 @@ DEFAULT_TTL = 15 * 60
 MAX_TTL = 24 * 60 * 60
 MAX_CHAIN = 8
 CLOCK_SKEW = 60
+MAX_HEADER_BYTES = 32 * 1024
+MAX_SCOPES = 64
+MAX_AUDIENCES = 32
+MAX_ID_LEN = 128
+
+_GRANT_FIELDS = {"v", "id", "iss", "kid", "sub", "scope", "aud", "nbf", "exp", "depth", "parent"}
+_OPTIONAL_GRANT_FIELDS = {"limits"}
+_REVOCATION_FIELDS = {"v", "grant", "iss", "ts"}
+_ID_RE = re.compile(r"\A[A-Za-z0-9_\-.:]{1,128}\Z")
+_AUD_RE = re.compile(r"\A[^\s,\"]{1,255}\Z")
 
 
 class GrantError(Exception):
@@ -81,6 +98,10 @@ def scopes_cover(parents: Iterable[str], children: Iterable[str]) -> bool:
     return all(any(scope_covers(p, c) for p in parents) for c in children)
 
 
+def _valid_audience(a: Any) -> bool:
+    return isinstance(a, str) and _AUD_RE.match(a) is not None
+
+
 def audience_covers(parents: Iterable[str], children: Iterable[str]) -> bool:
     parents = {p.lower() for p in parents}
     return "*" in parents or all(c.lower() in parents for c in children)
@@ -115,15 +136,19 @@ class Grant:
         return b64u(canonical_json(self.body)) + "." + self.sig
 
     @classmethod
-    def decode(cls, token: str) -> "Grant":
+    def decode(cls, token: str) -> Grant:
         try:
             b, s = token.strip().split(".")
-            body = json.loads(b64u_decode(b))
-        except (ValueError, TypeError):
+            body = json.loads(b64u_decode(b), parse_constant=_reject_constant)
+        except (ValueError, TypeError, RecursionError):
             raise GrantError("malformed grant", 400) from None
         if not isinstance(body, dict):
             raise GrantError("malformed grant", 400)
         return cls(body, s)
+
+
+def _reject_constant(name: str):
+    raise ValueError(f"{name} is not valid JSON")
 
 
 @dataclass
@@ -142,7 +167,9 @@ class GrantChain:
         return ",".join(g.encode() for g in self.links)
 
     @classmethod
-    def decode(cls, header: str) -> "GrantChain":
+    def decode(cls, header: str) -> GrantChain:
+        if header and len(header) > MAX_HEADER_BYTES:
+            raise GrantError(f"{HEADER} header larger than {MAX_HEADER_BYTES} bytes", 400)
         parts = [p for p in (header or "").split(",") if p.strip()]
         if not parts:
             raise GrantError("no grant presented", 401)
@@ -163,7 +190,7 @@ def issue(
     *,
     issuer_did: str,
     issuer_kid: str,
-    issuer_key: KeyPair,
+    issuer_key: Signer,
     subject: str,
     scopes: list,
     audiences: list,
@@ -181,12 +208,14 @@ def issue(
     now = int(now if now is not None else time.time())
     if not 0 < ttl <= MAX_TTL:
         raise GrantError(f"ttl must be between 1 and {MAX_TTL} seconds", 400)
-    if not scopes or not all(_valid_scope(s) for s in scopes):
+    if not scopes or len(scopes) > MAX_SCOPES or not all(_valid_scope(s) for s in scopes):
         raise GrantError(f"invalid scopes: {scopes}", 400)
-    if not audiences:
-        raise GrantError("at least one audience is required", 400)
-    if not isinstance(depth, int) or depth < 0:
-        raise GrantError("depth must be a non-negative integer", 400)
+    if not audiences or len(audiences) > MAX_AUDIENCES or not all(map(_valid_audience, audiences)):
+        raise GrantError("1-32 audiences (host[:port], no whitespace or commas) are required", 400)
+    if not isinstance(depth, int) or isinstance(depth, bool) or not 0 <= depth <= MAX_CHAIN:
+        raise GrantError(f"depth must be an integer between 0 and {MAX_CHAIN}", 400)
+    if not is_agent_did(subject):
+        raise GrantError("subject must be a did:agent identifier", 400)
     if subject == issuer_did:
         raise GrantError("cannot issue a grant to yourself", 400)
 
@@ -238,18 +267,36 @@ def issue(
     return GrantChain(links)
 
 
-def make_revocation(*, issuer_did: str, issuer_key: KeyPair, grant_id: str) -> dict:
+def make_revocation(*, issuer_did: str, issuer_key: Signer, grant_id: str) -> dict:
+    if not isinstance(grant_id, str) or not _ID_RE.match(grant_id):
+        raise GrantError("grant id must be 1-128 URL-safe characters", 400)
     body = {"v": REVOCATION_VERSION, "grant": grant_id, "iss": issuer_did, "ts": int(time.time())}
     return {"body": body, "sig": issuer_key.sign(canonical_json(body))}
 
 
-def verify_revocation(event: dict, issuer_key: str) -> dict:
+def parse_revocation(event: Any) -> dict:
+    """Structural checks on a revocation (no signature check). Returns its body."""
     body = event.get("body") if isinstance(event, dict) else None
-    if not isinstance(body, dict) or body.get("v") != REVOCATION_VERSION:
+    if not isinstance(body, dict) or body.get("v") != REVOCATION_VERSION or set(body) != _REVOCATION_FIELDS:
         raise GrantError("malformed revocation", 400)
-    if not isinstance(body.get("grant"), str) or not isinstance(body.get("iss"), str):
+    if set(event) - {"body", "sig"} or not isinstance(event.get("sig"), str):
         raise GrantError("malformed revocation", 400)
-    if not verify(issuer_key, canonical_json(body), event.get("sig") or ""):
+    if not isinstance(body["grant"], str) or not _ID_RE.match(body["grant"]) or not is_agent_did(body["iss"]):
+        raise GrantError("malformed revocation", 400)
+    ts = body["ts"]
+    if not isinstance(ts, int) or isinstance(ts, bool) or not 0 <= ts <= MAX_SAFE_INT:
+        raise GrantError("malformed revocation", 400)
+    return body
+
+
+def verify_revocation(event: dict, issuer_key: str) -> dict:
+    """Check a revocation's structure and that `issuer_key` signed it."""
+    body = parse_revocation(event)
+    try:
+        msg = canonical_json(body)
+    except (TypeError, ValueError):
+        raise GrantError("malformed revocation", 400) from None
+    if not verify(issuer_key, msg, event["sig"]):
         raise GrantError("bad revocation signature", 400)
     return body
 
@@ -272,6 +319,42 @@ def trust_principals(policy: dict) -> RootPolicy:
     return lambda did, aud: policy.get(did)
 
 
+def _is_int(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def check_grant_body(b: dict, i: int = 0) -> None:
+    """Structural validation of one grant body. Unknown fields are rejected (fail closed)."""
+    keys = set(b)
+    if b.get("v") != VERSION:
+        raise GrantError(f"link {i}: unsupported grant version")
+    if not _GRANT_FIELDS <= keys or keys - _GRANT_FIELDS - _OPTIONAL_GRANT_FIELDS:
+        unknown = sorted(keys - _GRANT_FIELDS - _OPTIONAL_GRANT_FIELDS)
+        raise GrantError(f"link {i}: missing or unknown fields" + (f" ({', '.join(unknown)})" if unknown else ""))
+    for k, t in (("id", str), ("iss", str), ("kid", str), ("sub", str), ("scope", list),
+                 ("aud", list), ("nbf", int), ("exp", int), ("depth", int)):
+        if not isinstance(b.get(k), t) or isinstance(b.get(k), bool):
+            raise GrantError(f"link {i}: missing or bad field {k!r}")
+    if not _ID_RE.match(b["id"]):
+        raise GrantError(f"link {i}: bad grant id")
+    if not is_agent_did(b["iss"]) or not is_agent_did(b["sub"]):
+        raise GrantError(f"link {i}: iss and sub must be did:agent identifiers")
+    if not b["kid"].startswith(b["iss"] + "#key-") or _kid_seq(b["kid"]) < 0:
+        raise GrantError(f"link {i}: kid does not belong to the issuer")
+    if not b["scope"] or len(b["scope"]) > MAX_SCOPES or not all(_valid_scope(s) for s in b["scope"]):
+        raise GrantError(f"link {i}: invalid scope")
+    if not b["aud"] or len(b["aud"]) > MAX_AUDIENCES or not all(map(_valid_audience, b["aud"])):
+        raise GrantError(f"link {i}: invalid audience")
+    if not (0 <= b["nbf"] <= MAX_SAFE_INT and 0 <= b["exp"] <= MAX_SAFE_INT):
+        raise GrantError(f"link {i}: nbf/exp out of range")
+    if b["depth"] < 0:
+        raise GrantError(f"link {i}: depth must be non-negative")
+    if b["parent"] is not None and not (isinstance(b["parent"], str) and _ID_RE.match(b["parent"])):
+        raise GrantError(f"link {i}: bad parent id")
+    if "limits" in b and not isinstance(b["limits"], dict):
+        raise GrantError(f"link {i}: limits must be an object")
+
+
 @dataclass
 class AuthorizedAgent:
     did: str
@@ -282,9 +365,14 @@ class AuthorizedAgent:
     link_limits: list = field(default_factory=list)  # [((iss, grant id), Limits)] root → leaf
     ledger: Optional[UsageLedger] = None
     charged: int = 0  # amount charged for this request (see GrantVerifier.enforce)
+    link_expiry: dict = field(default_factory=dict)  # (iss, grant id) -> exp
 
     def allows(self, scope: str) -> bool:
         return any(scope_covers(s, scope) for s in self.scopes)
+
+    @property
+    def grant_ids(self) -> list:
+        return [g.id for g in self.chain.links]
 
     @property
     def limits(self) -> Optional[dict]:
@@ -292,11 +380,28 @@ class AuthorizedAgent:
         return self.chain.leaf.body.get("limits")
 
     def refund(self, amount: Optional[int] = None) -> None:
-        """Return spend to every budget in the chain, e.g. when the paid action failed."""
+        """Return spend to every budget in the chain, e.g. when the paid action failed.
+
+        You can only give back what this request was charged: refunding more
+        would let a service bug (or a malicious caller-controlled amount) mint
+        budget out of nothing.
+        """
         amount = self.charged if amount is None else amount
+        if not _is_int(amount) or amount < 0:
+            raise GrantError("refund amount must be a non-negative integer", 400)
+        if amount > self.charged:
+            raise GrantError(f"cannot refund {amount}: only {self.charged} was charged", 400)
         if self.ledger is not None and amount:
             self.ledger.refund([x for x in self.link_limits if x[1].stateful], amount)
             self.charged -= amount
+
+
+def _accepts_kwarg(fn: Callable, name: str) -> bool:
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 class GrantVerifier:
@@ -308,18 +413,29 @@ class GrantVerifier:
         max_chain: int = MAX_CHAIN,
         ledger: Optional[UsageLedger] = None,
     ):
-        self.ledger = ledger or UsageLedger()
+        self.ledger = ledger if ledger is not None else UsageLedger()
         self.resolve_key = resolve_key
         self.root_policy = root_policy
         self.revoked = revoked or (lambda ids: set())
-        self.max_chain = max_chain
+        self.max_chain = min(max_chain, MAX_CHAIN)
+        # Ledgers written for v0.3 don't take `expires_at`; keep supporting them.
+        self._ledger_takes_expiry = _accepts_kwarg(self.ledger.consume, "expires_at")
+
+    def _resolve(self, did: str) -> Optional[tuple]:
+        try:
+            return self.resolve_key(did)
+        except GrantError:
+            raise
+        except Exception as e:
+            log.warning("issuer key resolution failed for %s: %s", did, e)
+            raise GrantError(f"could not resolve grant issuer {did}: {e}", 503) from None
 
     def _issuer_key(self, did: str, kid: str) -> str:
-        found = self.resolve_key(did)
+        found = self._resolve(did)
         if found and _kid_seq(kid) > _kid_seq(found[1]) and hasattr(self.resolve_key, "invalidate"):
             # grant claims a newer key than cached: issuer probably just rotated
             self.resolve_key.invalidate(did)
-            found = self.resolve_key(did)
+            found = self._resolve(did)
         if found is None:
             raise GrantError(f"grant issuer {did} is unknown or deactivated")
         key, current_kid = found
@@ -335,19 +451,18 @@ class GrantVerifier:
         audience = audience.lower()
 
         prev: Optional[Grant] = None
-        prev_limits: Optional[Limits] = None
+        prev_limits = Limits()
         link_limits: list = []
+        seen_ids: set = set()
         for i, g in enumerate(chain.links):
             b = g.body
-            if b.get("v") != VERSION:
-                raise GrantError(f"link {i}: unsupported grant version")
-            for k, t in (("id", str), ("iss", str), ("kid", str), ("sub", str), ("scope", list),
-                         ("aud", list), ("nbf", int), ("exp", int), ("depth", int)):
-                if not isinstance(b.get(k), t) or isinstance(b.get(k), bool):
-                    raise GrantError(f"link {i}: missing or bad field {k!r}")
-            if not g.scopes or not all(_valid_scope(s) for s in g.scopes):
-                raise GrantError(f"link {i}: invalid scope")
-            if not (g.nbf - CLOCK_SKEW <= now < g.exp + CLOCK_SKEW) or g.exp - g.nbf > MAX_TTL:
+            check_grant_body(b, i)
+            if (g.iss, g.id) in seen_ids:
+                raise GrantError(f"link {i}: grant appears twice in the chain")
+            seen_ids.add((g.iss, g.id))
+            if g.iss == g.sub:
+                raise GrantError(f"link {i}: a grant cannot be issued to its own issuer")
+            if not (g.nbf - CLOCK_SKEW <= now < g.exp + CLOCK_SKEW) or not 0 < g.exp - g.nbf <= MAX_TTL:
                 raise GrantError(f"link {i}: grant expired or not yet valid")
             if not audience_covers(g.aud, [audience]):
                 raise GrantError(f"link {i}: grant is not valid for audience {audience}")
@@ -373,7 +488,11 @@ class GrantVerifier:
                     raise GrantError(f"link {i}: loosens its parent's limits ({why})")
 
             key = self._issuer_key(g.iss, b["kid"])
-            if not verify(key, canonical_json(b), g.sig):
+            try:
+                msg = canonical_json(b)
+            except (TypeError, ValueError):
+                raise GrantError(f"link {i}: grant is not canonicalizable") from None
+            if not verify(key, msg, g.sig):
                 raise GrantError(f"link {i}: bad signature")
             prev, prev_limits = g, lim
             link_limits.append(((g.iss, g.id), lim))
@@ -381,13 +500,21 @@ class GrantVerifier:
         if chain.leaf.sub != requester:
             raise GrantError("grant was issued to a different agent")
 
-        allowed = self.root_policy(chain.root.iss, audience)
+        try:
+            allowed = self.root_policy(chain.root.iss, audience)
+        except Exception as e:
+            log.error("root policy failed for %s: %s", chain.root.iss, e)
+            raise GrantError("root policy unavailable", 503) from None
         if allowed is None:
             raise GrantError("root issuer is not a principal this service trusts")
         if not scopes_cover(allowed, chain.root.scopes):
             raise GrantError("root grant exceeds what its principal may authorize here")
 
-        revoked = self.revoked([(g.iss, g.id) for g in chain.links])
+        try:
+            revoked = self.revoked([(g.iss, g.id) for g in chain.links])
+        except Exception as e:
+            log.error("revocation check failed: %s", e)
+            raise GrantError("revocation status unavailable", 503) from None
         if revoked:
             raise GrantError("a grant in the chain has been revoked")
 
@@ -399,6 +526,7 @@ class GrantVerifier:
             via=[chain.root.iss] + [g.sub for g in chain.links],
             link_limits=link_limits,
             ledger=self.ledger,
+            link_expiry={(g.iss, g.id): g.exp + CLOCK_SKEW for g in chain.links},
         )
 
     def enforce(
@@ -416,16 +544,25 @@ class GrantVerifier:
         is what it costs, in `unit`. Stateless limits are checked on every link.
         Stateful ones (budget, rate, uses) are charged atomically against every
         link, so a parent's budget is shared by everything delegated under it.
+        Ledger failures fail closed (503).
         """
-        if not isinstance(amount, int) or isinstance(amount, bool) or amount < 0:
+        if not _is_int(amount) or not 0 <= amount <= MAX_SAFE_INT:
             raise GrantError("amount must be a non-negative integer", 400)
         try:
             for _, lim in authz.link_limits:
                 lim.check_call(resource=resource, amount=amount, unit=unit)
             stateful = [x for x in authz.link_limits if x[1].stateful]
             if stateful:
-                charge = amount if any(l.total is not None for _, l in stateful) else 0
-                self.ledger.consume(stateful, charge, now)
-                authz.charged = charge
+                charge = amount if any(lim.total is not None for _, lim in stateful) else 0
+                kw = {}
+                if self._ledger_takes_expiry:
+                    kw["expires_at"] = {k: authz.link_expiry.get(k) for k, _ in stateful}
+                self.ledger.consume(stateful, charge, now, **kw)
+                authz.charged += charge
         except LimitError as e:
             raise GrantError(str(e), e.status) from None
+        except GrantError:
+            raise
+        except Exception as e:
+            log.error("usage ledger failure: %s", e)
+            raise GrantError("usage ledger unavailable", 503) from None
