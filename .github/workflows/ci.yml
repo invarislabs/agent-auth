@@ -72,7 +72,7 @@ jobs:
           python -m pytest -q -ra --cov --cov-report=term --cov-report=xml --cov-fail-under=80 | tee pytest.txt
           # Nothing may be skipped here: the backends and the MCP SDK are all available in this job.
           ! grep -q "^SKIPPED" pytest.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.python-version == '3.12'
         with:
           name: coverage
