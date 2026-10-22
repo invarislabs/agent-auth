@@ -19,11 +19,13 @@ Model (a deliberately small cousin of KERI):
 from __future__ import annotations
 
 import copy
+import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
-from .crypto import KeyPair, canonical_json, digest, key_commitment, multikey_to_public_key, verify
+from .crypto import Signer, canonical_json, digest, is_digest, key_commitment, multikey_to_public_key, verify
 
 VERSION = "agentauth/1"
 DID_PREFIX = "did:agent:"
@@ -56,15 +58,26 @@ def _did_from_inception(body: dict) -> str:
     return DID_PREFIX + digest(canonical_json(unsigned))[1:]  # drop multibase 'z'
 
 
-def is_agent_did(value: str) -> bool:
-    return isinstance(value, str) and value.startswith(DID_PREFIX) and len(value) > len(DID_PREFIX) + 20
+# did:agent:<base58btc of a 34-byte sha2-256 multihash> is 45-46 characters after the prefix.
+_DID_RE = re.compile(r"\Adid:agent:[1-9A-HJ-NP-Za-km-z]{40,60}\Z")
+_TS_RE = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+
+# Exact field sets. Unknown fields are rejected so that two implementations can
+# never disagree about what an event means.
+_INCEPTION_FIELDS = {"v", "type", "seq", "prev", "key", "next", "controller", "meta", "ts", "did"}
+_UPDATE_FIELDS = {"v", "type", "did", "seq", "prev", "key", "next", "ts"}
+_ENVELOPE_FIELDS = {"body", "signer", "sig", "controller_proof"}
+
+
+def is_agent_did(value: Any) -> bool:
+    return isinstance(value, str) and _DID_RE.match(value) is not None
 
 
 def event_digest(event: dict) -> str:
     return digest(canonical_json(event["body"]))
 
 
-def _signed(body: dict, signer_did: str, key: KeyPair) -> dict:
+def _signed(body: dict, signer_did: str, key: Signer) -> dict:
     return {"body": body, "signer": signer_did, "sig": key.sign(canonical_json(body))}
 
 
@@ -74,11 +87,11 @@ def _signed(body: dict, signer_did: str, key: KeyPair) -> dict:
 
 
 def make_inception(
-    current: KeyPair,
-    next_key: KeyPair,
+    current: Signer,
+    next_key: Signer,
     *,
     controller: Optional[str] = None,
-    controller_key: Optional[KeyPair] = None,
+    controller_key: Optional[Signer] = None,
     meta: Optional[dict] = None,
 ) -> dict:
     """Create a self-signed inception event.
@@ -109,7 +122,7 @@ def make_inception(
     return event
 
 
-def make_rotation(state: "IdentityState", new_current: KeyPair, new_next: KeyPair) -> dict:
+def make_rotation(state: IdentityState, new_current: Signer, new_next: Signer) -> dict:
     """Rotate to the pre-committed key (`new_current`) and commit to `new_next`."""
     body = {
         "v": VERSION,
@@ -124,7 +137,7 @@ def make_rotation(state: "IdentityState", new_current: KeyPair, new_next: KeyPai
     return _signed(body, state.did, new_current)
 
 
-def make_deactivation(state: "IdentityState", signer_did: str, signer_key: KeyPair) -> dict:
+def make_deactivation(state: IdentityState, signer_did: str, signer_key: Signer) -> dict:
     """Deactivate an identity.
 
     Signed either by the agent's pre-committed *next* key (proving the holder
@@ -211,34 +224,79 @@ def _require(cond: bool, msg: str) -> None:
         raise InvalidEvent(msg)
 
 
-def _check_common(body: dict) -> None:
+def _is_int(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _check_envelope(event: Any) -> dict:
+    _require(isinstance(event, dict), "event must be an object")
+    _require(not (set(event) - _ENVELOPE_FIELDS), "event envelope has unknown fields")
+    _require(isinstance(event.get("signer"), str), "signer must be a string")
+    _require(isinstance(event.get("sig"), str), "sig must be a string")
+    body = event.get("body")
     _require(isinstance(body, dict), "event body must be an object")
+    return body
+
+
+def _check_common(body: dict, fields: set) -> None:
     _require(body.get("v") == VERSION, f"unsupported version {body.get('v')!r}")
-    _require(isinstance(body.get("seq"), int) and not isinstance(body.get("seq"), bool), "seq must be an int")
-    _require(isinstance(body.get("ts"), str), "ts must be a string")
+    _require(set(body) == fields, "event body has missing or unknown fields")
+    _require(_is_int(body.get("seq")) and body["seq"] >= 0, "seq must be a non-negative int")
+    _require(isinstance(body.get("ts"), str) and _TS_RE.match(body["ts"]) is not None,
+             "ts must be an RFC 3339 UTC timestamp (YYYY-MM-DDThh:mm:ssZ)")
     try:
-        multikey_to_public_key(body.get("key") or "")
+        multikey_to_public_key(body.get("key"))  # type: ignore[arg-type]  # validated here
     except ValueError as e:
         raise InvalidEvent(f"bad key: {e}") from None
 
 
+MAX_META_DEPTH = 16
+
+
+def _depth(obj: Any, limit: int) -> int:
+    """Nesting depth of a JSON value, computed iteratively (no recursion to exhaust)."""
+    deepest, stack = 0, [(obj, 1)]
+    while stack:
+        o, d = stack.pop()
+        if isinstance(o, (dict, list)):
+            if d > limit:
+                return d
+            deepest = max(deepest, d)
+            stack.extend((v, d + 1) for v in (o.values() if isinstance(o, dict) else o))
+    return deepest
+
+
+def _canonical(body: dict) -> bytes:
+    try:
+        return canonical_json(body)
+    except (TypeError, ValueError) as e:
+        raise InvalidEvent(f"event is not canonicalizable: {e}") from None
+
+
 def verify_inception(event: dict, controller_check: ControllerKeyCheck) -> IdentityState:
     """Verify an inception event (including the controller's countersignature, if any)."""
-    body, sig = event.get("body"), event.get("sig")
-    _check_common(body)
-    _require(body["type"] == INCEPTION, "first event must be an inception")
+    body = _check_envelope(event)
+    sig = event["sig"]
+    _require(body.get("type") == INCEPTION, "first event must be an inception")
+    _check_common(body, _INCEPTION_FIELDS)
     _require(body["seq"] == 0 and body.get("prev") is None, "inception must have seq=0, prev=null")
-    _require(isinstance(body.get("next"), str), "inception must commit to a next key (pre-rotation)")
+    _require(is_digest(body.get("next")), "inception must commit to a next key (pre-rotation)")
+    _require(isinstance(body.get("meta"), dict), "meta must be an object")
+    _require(_depth(body["meta"], MAX_META_DEPTH) <= MAX_META_DEPTH, f"meta may nest at most {MAX_META_DEPTH} levels")
+    msg = _canonical(body)
     _require(body.get("did") == _did_from_inception(body), "DID does not match inception digest")
     _require(event.get("signer") == body["did"], "inception must be self-signed")
     ctrl = body.get("controller")
     _require(ctrl is None or (is_agent_did(ctrl) and ctrl != body["did"]), "controller must be another agent DID")
-    _require(isinstance(body.get("meta"), dict), "meta must be an object")
-    _require(verify(body["key"], canonical_json(body), sig or ""), "bad inception signature")
+    _require(verify(body["key"], msg, sig), "bad inception signature")
     if ctrl is not None:
-        proof = event.get("controller_proof") or {}
-        _require(verify(proof.get("key") or "", canonical_json(body), proof.get("sig") or ""), "missing or bad controller countersignature")
+        proof = event.get("controller_proof")
+        if not isinstance(proof, dict) or set(proof) != {"key", "sig"}:
+            raise InvalidEvent("missing or bad controller countersignature")
+        _require(verify(proof["key"], msg, proof["sig"]), "missing or bad controller countersignature")
         _require(controller_check(ctrl, proof["key"]), "controller countersignature is not from a valid controller key")
+    else:
+        _require("controller_proof" not in event, "controller_proof without a controller")
     return IdentityState(
         did=body["did"],
         seq=0,
@@ -261,20 +319,23 @@ def apply_event(
     controller_check: ControllerKeyCheck,
 ) -> IdentityState:
     """Validate `event` against `state` and return the new state (pure)."""
-    body, sig, signer = event.get("body"), event.get("sig") or "", event.get("signer")
-    _check_common(body)
+    body = _check_envelope(event)
+    sig, signer = event["sig"], event["signer"]
+    _require("controller_proof" not in event, "controller_proof is only valid on inception")
+    _require(body.get("type") in (ROTATION, DEACTIVATION), f"unknown event type {body.get('type')!r}")
+    _check_common(body, _UPDATE_FIELDS)
     _require(state.active, "identity is deactivated")
     _require(body.get("did") == state.did, "event is for a different DID")
     _require(body["seq"] == state.seq + 1, f"expected seq {state.seq + 1}, got {body['seq']}")
     _require(body.get("prev") == state.last_digest, "prev digest does not chain to the log")
-    msg = canonical_json(body)
+    msg = _canonical(body)
     new = copy.deepcopy(state)
     new.seq, new.updated, new.last_digest = body["seq"], body["ts"], event_digest(event)
 
     if body["type"] == ROTATION:
         _require(signer == state.did, "rotation must be signed by the agent")
         _require(key_commitment(body["key"]) == state.next, "rotated key does not match pre-rotation commitment")
-        _require(isinstance(body.get("next"), str), "rotation must commit to a new next key")
+        _require(is_digest(body.get("next")), "rotation must commit to a new next key")
         _require(key_commitment(body["key"]) != body["next"], "next key must differ from current key")
         _require(verify(body["key"], msg, sig), "bad rotation signature")
         new.key, new.next, new.key_seq = body["key"], body["next"], body["seq"]
@@ -289,7 +350,7 @@ def apply_event(
                 "self-deactivation must be signed with the pre-committed recovery key",
             )
         else:
-            _require(signer is not None and signer == state.controller, "only the agent or its controller may deactivate")
+            _require(state.controller is not None and signer == state.controller, "only the agent or its controller may deactivate")
             _require(controller_check(signer, body["key"]), "deactivation not signed with a valid controller key")
         _require(verify(body["key"], msg, sig), "bad deactivation signature")
         new.active, new.key, new.next = False, None, None
@@ -307,7 +368,7 @@ def verify_log(
     signatures are always enforced. Supply `controller_check` to also bind
     controller signatures to the controller's own key history.
     """
-    _require(isinstance(events, list) and events, "log is empty")
+    _require(isinstance(events, list) and len(events) > 0, "log is empty")
     state = verify_inception(events[0], controller_check)
     for ev in events[1:]:
         state = apply_event(state, ev, controller_check)
