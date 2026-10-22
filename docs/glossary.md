@@ -10,6 +10,8 @@
 
 **Audience (`aud`).** The `host[:port]` a request or grant is meant for. Services reject anything addressed to another audience.
 
+**Audit log.** A service's hash-chained, optionally signed record of authorization decisions.
+
 **Chain.** An ordered list of grants from a principal down to the agent making the request. Each link is issued by the previous link's subject.
 
 **Controller.** An identity (usually a human or org) named in an agent's inception event. It countersigns the agent's creation, can list the agents it controls, and can deactivate them.
@@ -23,6 +25,8 @@
 **DID (Decentralized Identifier).** A W3C-standard identifier. AgentAuth's method is `did:agent:`, and the identifier is derived from the identity's inception event.
 
 **DID document.** The public description of a DID's current keys, served by the registry in W3C DID resolution format.
+
+**Equivocation.** A registry serving two conflicting histories for one DID, or rolling a history back. Detected with pins and registry pools; verifiers fail closed when they see it.
 
 **Grant.** A signed capability: *issuer lets subject do these scopes at these audiences until this time, with these limits.*
 
@@ -40,6 +44,8 @@
 
 **Nonce.** A random, single-use value in each signed request. It stops replays.
 
+**Pin.** The newest `(seq, digest)` a relying service has verified for a DID. Every later log for that DID must extend it.
+
 **Pre-rotation.** Committing to the hash of the next key in advance, so a rotation must be signed by a key that has never been used or exposed.
 
 **Principal.** The root of a grant chain: the human or org whose authority an agent is exercising. A service decides which principals it trusts.
@@ -48,9 +54,13 @@
 
 **Registry.** The service that stores key event logs and revocations. It's a witness, not an authority: it validates events but can't forge them.
 
+**Registry pool.** Several independent registries used together: events are written to all, and reads take the longest log they all agree on.
+
 **Relying service (relying party).** Any API that verifies agent requests and grants.
 
-**Revocation.** An issuer-signed statement that one of its grants is withdrawn. It also invalidates every delegation beneath that grant.
+**Replay cache.** The verifier's record of `(did, nonce)` pairs seen within the replay window. Must be shared by every process serving an audience.
+
+**Revocation.** An issuer-signed statement that one of its grants is withdrawn. It also invalidates every delegation beneath that grant. The signed statement doubles as a **revocation proof** a service can check itself.
 
 **Root policy.** A service's rule for which principals may authorize which scopes there.
 
@@ -58,8 +68,10 @@
 
 **Scope.** A dotted action name (`files.read`), optionally ending in a wildcard (`files.*`), or `*` for everything.
 
+**Signer.** Anything that can produce Ed25519 signatures for a public key: an in-process `KeyPair`, or an adapter for an HSM or KMS.
+
 **Subject (`sub`).** The identity a grant is issued to.
 
 **Usage ledger.** The service-side record of spend, call rate and use counts for each grant.
 
-**Witness.** A party that records and vouches for events without being able to create them. The registry is currently the only witness.
+**Witness.** A party that records and vouches for events without being able to create them. Every registry is one; a registry pool uses several.

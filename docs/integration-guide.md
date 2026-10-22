@@ -3,12 +3,13 @@
 There are two sides to integrating AgentAuth:
 
 - **[Agent side](#agent-side):** you're building an agent that calls services.
-- **[Service side](#service-side):** you run an API that agents call.
+- **[Service side](#service-side):** you run an API (or an MCP server) that agents call.
 
 Both use the same package:
 
 ```bash
-pip install "agentauth[server]"        # [server] adds FastAPI + uvicorn
+pip install "agentauth[server]"          # [server] adds FastAPI + uvicorn
+pip install "agentauth[server,redis]"    # + shared replay cache and budgets for several replicas
 ```
 
 ---
@@ -25,12 +26,13 @@ reg = RegistryClient("https://registry.example.com")
 me, inception = AgentIdentity.create(name="researcher", meta={"model": "claude", "team": "growth"})
 reg.register(inception)
 
-me.save("~/.agentauth", "researcher", recovery_dir="/secure/vault")
+me.save("~/.agentauth", "researcher", passphrase=PASSPHRASE, recovery_dir="/secure/vault")
 print(me.did)          # did:agent:Qm…
 ```
 
 - `save` writes two files: `researcher.key.json` (the current key, which the running agent needs) and `researcher.recovery.json` (the pre-committed next key). **Put the recovery file somewhere the agent runtime can't read.** See [operations → key management](operations.md#key-management).
-- Set `AGENTAUTH_PASSPHRASE` (or pass `passphrase=`) to encrypt both files.
+- Pass `passphrase=`, or set `AGENTAUTH_PASSPHRASE` / `AGENTAUTH_PASSPHRASE_FILE`, to encrypt both files.
+- If the registry requires a registration token, pass `RegistryClient(url, registration_token=...)` or set `AGENTAUTH_REGISTRATION_TOKEN`.
 
 **With an owner.** If a human or org identity should own the agent, and be able to switch it off, pass it as the controller. The controller's key countersigns the inception:
 
@@ -38,6 +40,8 @@ print(me.did)          # did:agent:Qm…
 owner = AgentIdentity.load("~/.agentauth", "arunima")
 me, inception = AgentIdentity.create(name="researcher", controller=owner)
 ```
+
+**Recovery key in an HSM or KMS.** Anything with a `public_multikey` property and a `sign(message) -> base64url signature` method is a `Signer` and can stand in for a `KeyPair`, e.g. as the next key of a rotation (`identity.prepare_rotation(new_next=hsm_signer)`) or in `make_inception`. External signers aren't written to key files.
 
 ### 2. Load it at runtime
 
@@ -55,11 +59,15 @@ httpx.post("https://api.example.com/search", json={"q": "…"}, auth=me.httpx_au
 
 `httpx_auth()` works with both `httpx` and `httpx2` clients. It signs the method, URL, body, timestamp and a fresh nonce on every request.
 
-Any other HTTP client works too. Compute the header yourself and send it:
+Any other HTTP client works too. Compute the headers yourself and send them **with exactly the bytes you signed**:
 
 ```python
-headers = {"Authorization": me.authorization("POST", url, body_bytes)}
+body = json.dumps({"q": "…"}).encode()
+headers = me.headers("POST", url, body)               # {"Authorization": "AgentSig …"}
+headers = me.headers("POST", url, body, grants=chain)  # adds "AgentGrant"
 ```
+
+Each signed request is single-use: retrying must sign again (a fresh nonce), not resend the same headers.
 
 ### 4. Act on someone's behalf (grants)
 
@@ -111,14 +119,27 @@ Limits apply to **every scope in the grant**. If the agent needs a budget for on
 
 ```python
 admin = AgentIdentity.load("~/.agentauth", "researcher", recovery_dir="/secure/vault")
-reg.rotate(admin); admin.save("~/.agentauth", "researcher", recovery_dir="/secure/vault")
+admin.rotate_and_save(reg, "~/.agentauth", "researcher", recovery_dir="/secure/vault")
 
 reg.revoke_grant(owner, root.leaf.id)             # kills root and everything delegated from it
 reg.deactivate_controlled(owner, me.did)          # owner's kill switch
 reg.deactivate_self(admin)                        # agent retires itself (needs the recovery key)
 ```
 
+`rotate_and_save` saves the new next key to `<name>.pending.json` before submitting, confirms the rotation against the registry's log, and only then rewrites the key files. If it's interrupted, call it again to finish. (`reg.rotate(identity)` still exists, but holds the new key only in memory until you save.)
+
 After a rotation, grants the rotated identity *issued* must be re-issued. Grants it *received* are unaffected.
+
+### 8. Several registries
+
+```python
+from agentauth import RegistryPool
+reg = RegistryPool([RegistryClient("https://reg-a.example.com"), RegistryClient("https://reg-b.example.org")])
+reg.register(inception)            # written to both
+admin.rotate_and_save(reg, ...)    # also written to both, and lagging copies are backfilled
+```
+
+A registry that's unreachable or rejects a write doesn't stop the others; the write fails only if every registry fails. Reads need all registries to answer unless you lower `read_quorum`, so with a pool always rotate with `rotate_and_save` (it can resume if confirming the rotation fails).
 
 ---
 
@@ -143,6 +164,8 @@ def me(agent = Depends(require_agent)):
 ```
 
 - **`audiences`** must contain the `host[:port]` that clients put in the URL. List every public hostname the service answers to.
+- If one app serves several audiences and routes by host, pass `bind_host=True` so a request signed for one host can't be sent to another. (Leave it off if your proxy rewrites `Host`.)
+- With a custom replay cache, give it a TTL of at least `2 × max_skew + 1` seconds; the verifier refuses anything shorter.
 - Use this when all you need is a stable, unforgeable caller ID, for example for allow-lists or per-agent quotas you manage yourself.
 
 ### 2. Scoped authority: "who allowed this, and to do what?"
@@ -176,7 +199,11 @@ def root_policy(did, audience):
     return user.allowed_scopes if user and user.active else None
 ```
 
+If the callable raises, the request is refused with 503.
+
 **Choosing scope names.** Use `resource.action`, with hierarchy where it helps: `files.read`, `files.write`, `payments.buy`, `tools.web.fetch`. Principals can then grant `files.*` or just `files.read`.
+
+**Revocation proofs.** `RegistryRevocationChecker` verifies the issuer-signed proof the registry returns with every "revoked" answer. By default a claim without a valid proof still counts as revoked (fail closed) and is logged; `on_unproven="ignore"` honours only proven revocations, for deployments where a registry falsely revoking grants is the bigger risk.
 
 ### 3. Resource and spend limits
 
@@ -202,42 +229,134 @@ def purchase(body: dict, agent = Depends(require("payments.buy", amount=price, u
 Rules of thumb:
 
 - **Declare a `resource` on every endpoint that touches named things.** A grant with resource limits is refused at endpoints that don't declare one. That's intentional (fail closed).
-- **Declare an `amount` on every endpoint that spends.** Spend limits can only bind endpoints that report a cost.
+- **Declare an `amount` on every endpoint that spends.** Spend limits can only bind endpoints that report a cost. Amounts are integers; a float or a string is refused.
 - **Use a consistent unit string** (`"USD-cents"`, `"tokens"`, `"credits"`). A grant in one unit is refused at an endpoint that charges in another.
 - **Normalize resource names** the same way principals write patterns. For example, strip trailing slashes and use absolute paths. `..` and `.` segments are rejected for you.
+- `refund()` can return at most what this request was charged.
 
-### 4. Not using FastAPI?
+### 4. More than one process or replica
 
-The verifiers are framework-agnostic:
+The default replay cache and usage ledger live in process memory. As soon as two processes verify requests for the same audience (two uvicorn workers count), share them through Redis, or a request can be replayed once per process and every limit multiplies:
 
 ```python
-agent = request_verifier.verify(authorization=hdr, method=m, path=path_with_query, body=raw_body, grants=grant_hdr)
+from agentauth.backends.redis import RedisNonceCache, RedisUsageLedger
+
+verifier = RequestVerifier(keys, audiences={"api.example.com"}, nonce_cache=RedisNonceCache(REDIS_URL))
+grants = GrantVerifier(keys, root_policy=..., revoked=..., ledger=RedisUsageLedger(REDIS_URL))
+```
+
+If Redis is down, requests are refused with 503. See [operations → scaling](operations.md#scaling).
+
+### 5. Defending against a dishonest registry
+
+`RegistryKeyResolver` remembers the newest log it has verified for each DID. If a registry later serves a shorter log (hiding events) or a conflicting one, it raises `EquivocationError` and requests for that DID fail with 503. To make that memory survive restarts, and to cross-check several registries:
+
+```python
+from agentauth import RegistryPool, SQLitePins
+
+pool = RegistryPool([RegistryClient(A), RegistryClient(B)])
+keys = RegistryKeyResolver(pool, ttl=30, pins=SQLitePins("/var/lib/my-service/pins.db"))
+revoked = RegistryRevocationChecker(pool, ttl=5)
+```
+
+### 6. Audit log
+
+```python
+from agentauth import AuditLog, KeyPair
+
+audit = AuditLog("/var/lib/my-service/audit.db", signer=SERVICE_KEY, instance="api-1")
+require = fastapi_authorizer(verifier, grants, audit=audit)
+```
+
+If an *allowed* decision can't be written to the log, the call is refunded and refused with 503. Every decision made after the caller's signature verified is appended to a hash-chained, optionally signed log: agent, principal, full delegation path, grant ids, scopes, resource, amount, outcome and status. Export `audit.head()` regularly to another system, and check the log with `agentauth audit /var/lib/my-service/audit.db --key <multikey> --head SEQ:DIGEST`.
+
+### 7. Not using FastAPI? Any ASGI app
+
+`agentauth.asgi.AgentAuthMiddleware` works with any ASGI framework (Starlette, Litestar, Quart, …) and doesn't import FastAPI:
+
+```python
+from agentauth.asgi import PUBLIC, AgentAuthMiddleware, Requirement
+
+def rules(req):
+    if req.path in ("/healthz", "/docs"):
+        return PUBLIC                                   # no authentication
+    if req.path == "/search":
+        return Requirement(scopes=["tools.search"])     # grant required
+    return None                                         # signature only
+
+app = AgentAuthMiddleware(app, verifier=verifier, grants=grants, rules=rules, audit=audit)
+```
+
+The result is available to your handlers as `request.state.agentauth` (a `VerifiedAgent` or `AuthorizedAgent`).
+
+### 8. MCP servers
+
+For an MCP server using the streamable HTTP transport, `mcp_rules()` maps JSON-RPC calls to scopes: every request needs `mcp.session`, and a `tools/call` for tool `X` additionally needs `mcp.tools.X`. A principal grants `mcp.*` for everything, or `["mcp.session", "mcp.tools.search"]` for one tool.
+
+```python
+from mcp.server.mcpserver import MCPServer
+from agentauth.asgi import AgentAuthMiddleware, mcp_rules
+
+server = MCPServer("tools")
+app = AgentAuthMiddleware(server.streamable_http_app(), verifier=verifier, grants=grants,
+                          rules=mcp_rules(resource=lambda tool, args: args.get("path")))
+```
+
+`resource=` lets resource limits on grants apply to tool arguments.
+
+On the client side, give the MCP client an HTTP client that signs every request:
+
+```python
+import httpx2
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+http = httpx2.AsyncClient(auth=agent.httpx_auth(chain))
+async with streamable_http_client("https://tools.example.com/mcp", http_client=http) as (read, write, *_):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        await session.call_tool("search", {"q": "…"})
+```
+
+Both sides are tested against the official MCP Python SDK (`mcp` 2.x, streamable HTTP, stateless JSON responses) in `tests/test_integrations.py`. SSE streaming responses and session resumption weren't specifically tested.
+
+### 9. Framework-agnostic verification
+
+The verifiers can be called directly:
+
+```python
+from agentauth.asgi import request_target
+
+agent = request_verifier.verify(authorization=hdr, method=m, path=raw_path_with_query, body=raw_body, grants=grant_hdr)
 authz = grant_verifier.verify(grant_hdr, requester=agent.did, audience=agent.audience)
 if not authz.allows("files.read"): deny()
 grant_verifier.enforce(authz, resource="/reports/q3.pdf", amount=0)
 ```
 
-Catch `AuthError` (map it to 401) and `GrantError` (use its `.status`).
+- Pass the **raw** request target (percent-encoding intact, plus `?query`), not a decoded path. For ASGI apps, `request_target(scope)` computes it.
+- Catch `AuthError` and `GrantError` and use their `.status`: 401/403/402/429 for the caller's problems, 400 for malformed input, 503 when a dependency (registry, Redis, policy) failed.
 
-### 5. Tuning freshness
+### 10. Tuning freshness
 
 | Setting | Lower it for… | Cost |
 |---|---|---|
 | `RegistryKeyResolver(ttl=…)` | faster effect of deactivation | more registry calls |
 | `RegistryRevocationChecker(ttl=…)` | faster effect of revocation | more registry calls |
-| `RegistryKeyResolver(verify_logs=False)` | lower latency | trusts the registry's DID document instead of replaying the log |
+| `RegistryKeyResolver(verify_logs=False)` | lower latency | trusts the registry's DID document instead of replaying the log, and disables rollback detection |
 
 For payments or other irreversible actions, consider `ttl=0` on both.
 
-### 6. Testing
+### 11. Testing
 
 Use FastAPI's `TestClient` with an in-process registry. `tests/test_grants.py` in this repo is a complete example:
 
 ```python
 from fastapi.testclient import TestClient
+from agentauth.config import Settings
 from agentauth.server import create_app
 
-reg = RegistryClient("http://testserver", client=TestClient(create_app(db_path=":memory:", audiences={"testserver"})))
+settings = Settings(audiences={"testserver"}, rate_limit_writes=None, rate_limit_reads=None)
+reg = RegistryClient("http://testserver", client=TestClient(create_app(db_path=":memory:", settings=settings)))
 ```
 
-`python examples/tool_service.py --trust <principal DID>` runs a demo service with scoped, resource-limited and spend-limited endpoints you can call from the CLI.
+`python examples/tool_service.py --trust <principal DID>` runs a demo service with scoped, resource-limited and spend-limited endpoints you can call from the CLI. Add `--redis`, `--pins` and `--audit` to try the production options.

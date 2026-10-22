@@ -1,6 +1,8 @@
-# Protocol specification (v0.3)
+# Protocol specification (v0.4)
 
 This document describes AgentAuth's wire formats and verification rules precisely enough to write a compatible client or verifier in another language. The Python package is the reference implementation. If this document and the code disagree, the code wins, and the disagreement should be fixed here.
+
+**Compatibility.** The wire formats and version strings are unchanged since v0.3 (`agentauth/1`, `agentauth-request/1`, `agentauth-grant/1`, `agentauth-revocation/1`), and everything a v0.3 client produces is still accepted. v0.4 makes **verification stricter**: inputs that v0.3 accepted only by accident (duplicate header parameters, unknown fields, non-canonical encodings, out-of-range numbers) are now rejected. [§9](#9-changes-in-v04) lists every change.
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
@@ -12,6 +14,7 @@ The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 - [6. Revocation](#6-revocation)
 - [7. Registry HTTP API](#7-registry-http-api)
 - [8. Version strings and constants](#8-version-strings-and-constants)
+- [9. Changes in v0.4](#9-changes-in-v04)
 
 ---
 
@@ -21,6 +24,7 @@ The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
 - **Algorithm:** Ed25519 (RFC 8032).
 - **Encoding:** the 64-byte signature, base64url **without padding** (`b64u`).
+- **Strict decoding.** Verifiers MUST reject any base64url string that is not the canonical unpadded encoding of its bytes: padding (`=`), characters outside `A–Z a–z 0–9 - _`, a length ≡ 1 (mod 4), or non-zero unused trailing bits. (Many base64 libraries silently skip stray characters, which would let one signature have several spellings.)
 
 ### 1.2 Public keys (multikey)
 
@@ -48,6 +52,8 @@ Everything that gets signed or hashed is serialized as canonical JSON:
 - no insignificant whitespace (separators `,` and `:`);
 - UTF-8, with non-ASCII characters emitted as-is (not `\u` escaped);
 - **floating-point numbers MUST NOT appear**. Only strings, integers, booleans, `null`, arrays and objects are allowed.
+- strings MUST be valid Unicode (no lone surrogates).
+- when parsing JSON that will be verified, implementations SHOULD reject duplicate object keys, `NaN` and `Infinity` (the reference registry does).
 
 For the payloads AgentAuth signs (ASCII object keys, integers within ±2⁵³), this produces the same bytes as RFC 8785 (JCS). Implementations SHOULD NOT rely on equivalence outside that range: JCS sorts keys by UTF-16 code units and treats all numbers as IEEE doubles.
 
@@ -72,7 +78,7 @@ An identity is an ordered list of **events**. Each event is an envelope:
 }
 ```
 
-`controller_proof` appears only on inception events that name a controller.
+`controller_proof` appears only on inception events that name a controller, and MUST NOT appear anywhere else. An envelope with any other top-level field is invalid.
 
 The **event digest** is `digest(canonical_json(body))`.
 
@@ -102,14 +108,16 @@ The **event digest** is `digest(canonical_json(body))`.
 
 A verifier MUST check that:
 
-1. `v == "agentauth/1"`, `type == "inception"`, `seq == 0` (an integer, not a boolean), `prev == null`, `ts` is a string.
-2. `key` is a valid Ed25519 multikey.
-3. `next` is a string. Pre-rotation is mandatory.
+1. `v == "agentauth/1"`, `type == "inception"`, `seq == 0` (an integer, not a boolean), `prev == null`, and `ts` matches `YYYY-MM-DDThh:mm:ssZ`.
+2. The body has **exactly** the fields shown above (no more, no fewer).
+3. `key` is a valid Ed25519 multikey, and `next` is a well-formed digest (§1.3: `z` + base58btc of the 34-byte sha2-256 multihash). Pre-rotation is mandatory.
 4. `did` equals the derivation above.
 5. `signer == did`, and `sig` verifies against `key`.
 6. `controller` is `null`, or an agent DID different from `did`.
-7. `meta` is an object.
-8. If `controller` is set: `controller_proof.sig` MUST verify over `canonical_json(body)` with `controller_proof.key`. A registry MUST additionally check that `controller_proof.key` is the controller's **current** key.
+7. `meta` is an object nested at most 16 levels deep.
+8. If `controller` is set: `controller_proof` is an object with exactly `key` and `sig`, and `controller_proof.sig` MUST verify over `canonical_json(body)` with `controller_proof.key`. A registry MUST additionally check that `controller_proof.key` is the controller's **current** key.
+
+A DID is `did:agent:` followed by 40–60 base58btc characters (in practice 46). Verifiers SHOULD reject anything else wherever a DID is expected.
 
 ### 2.3 Rotation
 
@@ -124,7 +132,7 @@ On top of the common checks (§2.5), a verifier MUST check that:
 
 - `signer == did`;
 - `commitment(key) == state.next`, meaning the revealed key matches the previous commitment;
-- `next` is a string, and `next != commitment(key)`;
+- `next` is a well-formed digest, and `next != commitment(key)`;
 - `sig` verifies against the **new** `key`.
 
 ### 2.4 Deactivation
@@ -145,6 +153,7 @@ In both cases `sig` MUST verify against `key` and `next` MUST be `null`. After d
 
 ### 2.5 Checks common to every non-inception event
 
+- The body has exactly the fields `v, type, did, seq, prev, key, next, ts`; `type` is `rotation` or `deactivation`; `ts` has the format in §2.2; there is no `controller_proof`.
 - The identity MUST be active.
 - `body.did` MUST equal the identity's DID.
 - `seq` MUST be exactly `state.seq + 1`.
@@ -191,7 +200,13 @@ A deactivated identity has empty `verificationMethod`, `authentication` and `ass
 Authorization: AgentSig did="<did>",kid="<kid>",aud="<host[:port]>",ts="<unix seconds>",nonce="<random>",sig="<b64u>"
 ```
 
-Parameter values MUST NOT contain `"`. The nonce SHOULD have at least 128 bits of entropy (the reference client uses 16 random bytes, base64url-encoded).
+Parameter values MUST NOT contain `"`. Parameters are separated by `,` (optional whitespace around it). The header MUST NOT be longer than 4096 bytes.
+
+- `did` is a `did:agent:` identifier (§2.2).
+- `kid` is `did + "#key-" + n` for that same `did`, with `n` a decimal integer without leading zeros.
+- `ts` is a decimal integer of 1–15 ASCII digits (no sign, spaces, `_` or decimal point).
+- `nonce` is 16–128 characters from `A–Z a–z 0–9 - _ . ~ + / =`. It SHOULD have at least 128 bits of entropy (the reference client uses 16 random bytes, base64url-encoded: 22 characters).
+- `aud` is 1–255 characters with no whitespace, `,` or `"`.
 
 ### 3.2 Signing string
 
@@ -212,13 +227,16 @@ The lines are joined with `\n`, with no trailing newline, and encoded as UTF-8. 
 
 A verifier configured with a set of accepted audiences MUST, in this order:
 
-1. Parse the header. All six parameters are required.
-2. Reject if `aud` (lower-cased) is not one of its audiences.
-3. Reject if `|now − ts| > max_skew`. The default is 120 s.
-4. Resolve `did` to its current `(key, kid)`. Reject if unknown or deactivated. If the presented `kid` has a **higher** key sequence than the cached one, the verifier SHOULD refresh its cache once before rejecting.
-5. Reject if the presented `kid` isn't the current `kid`.
-6. Verify `sig` over the signing string, using the verifier's own view of method, path, body and `AgentGrant` header.
-7. Reject if `(did, nonce)` has been seen within the replay window (at least 2 × `max_skew`). Record the nonce **only after** the signature verifies.
+1. Parse the header. All six parameters are required; a parameter that appears twice, or text that isn't a `name="value"` list, makes the header invalid.
+2. Reject if `aud` (lower-cased) is not one of its audiences. A verifier that serves several audiences from one application and routes by `Host` SHOULD also require `aud` to equal the request's `Host` (reference: `bind_host=True`).
+3. Reject if `ts` is malformed or `|now − ts| > max_skew`. The default is 120 s.
+4. Reject if `nonce`, `did` or `kid` is malformed (§3.1).
+5. Resolve `did` to its current `(key, kid)`. Reject if unknown or deactivated. If the presented `kid` has a **higher** key sequence than the cached one, the verifier SHOULD refresh its cache once before rejecting, and SHOULD rate-limit such forced refreshes per DID (the reference resolver allows one per second).
+6. Reject if the presented `kid` isn't the current `kid`.
+7. Verify `sig` over the signing string, using the verifier's own view of method, path, body and `AgentGrant` header. The path is the **raw request target** as received (percent-encoding intact), not a decoded form.
+8. Reject if `(did, nonce)` has been seen within the replay window (at least 2 × `max_skew` + 1 s; the reference verifier refuses a replay cache configured with a shorter TTL). Record the nonce **only after** the signature verifies. The replay cache MUST be shared by every process that accepts requests for the same audience.
+
+If the verifier cannot complete a step because a dependency failed (key resolution, replay cache), it MUST reject the request; the reference implementation answers 503 so clients can tell an outage from an authentication failure.
 
 ---
 
@@ -245,6 +263,8 @@ A verifier configured with a set of accepted audiences MUST, in this order:
 
 - `scope` and `aud` are sorted and de-duplicated, and `aud` is lower-cased.
 - `limits` is omitted when there are no limits (see §5).
+- A body with any field not shown above is **invalid** (fail closed: a future constraint must never be silently ignored).
+- `id` and `parent` are 1–128 characters from `A–Z a–z 0–9 _ - . :`. `iss` and `sub` are agent DIDs; `kid` starts with `iss + "#key-"`. `scope` has 1–64 entries, `aud` 1–32 entries of 1–255 characters without whitespace, `,` or `"`. `nbf` and `exp` are integers in [0, 2⁵³−1]; `depth` is a non-negative integer.
 
 ### 4.2 Encoding
 
@@ -253,7 +273,7 @@ grant  = b64u(canonical_json(body)) + "." + b64u(signature over canonical_json(b
 header = grant_root "," grant_1 "," … "," grant_leaf          (at most 8 links)
 ```
 
-The header name is `AgentGrant`.
+The header name is `AgentGrant`. Verifiers MAY reject headers longer than 32 KiB (the reference implementation does).
 
 ### 4.3 Scopes
 
@@ -272,9 +292,9 @@ Given the `AgentGrant` header, the authenticated requester DID `R`, and the requ
 
 For each link `g[i]`, root first:
 
-1. Check `v`, and that `id`, `iss`, `kid`, `sub` are strings, `scope` and `aud` are lists, and `nbf`, `exp`, `depth` are integers (not booleans).
-2. Check that every scope is valid (§4.3).
-3. Check `nbf − 60 ≤ now < exp + 60`, and `exp − nbf ≤ 86400`.
+1. Check `v` and the field rules in §4.1 (types, formats, no unknown fields). Integers are never booleans.
+2. Check that every scope is valid (§4.3), `iss != sub`, and that the same `(iss, id)` doesn't appear twice in the chain.
+3. Check `nbf − 60 ≤ now < exp + 60`, and `0 < exp − nbf ≤ 86400`.
 4. Check that `aud` covers `A`.
 5. Parse `limits` (§5). Unknown limit fields make the grant invalid.
 6. If `i == 0`: `parent` MUST be `null`.
@@ -291,6 +311,8 @@ Then:
 8. The leaf's `sub` MUST equal `R`.
 9. Apply the service's **root policy** to `(root.iss, A)`. It returns the scopes that principal may authorize at this service, or nothing if the principal isn't trusted. Reject if nothing is returned, or if the returned scopes don't cover `root.scope`.
 10. Reject if any `(g.iss, g.id)` in the chain has been revoked (§6).
+
+Any failure of a dependency in steps 7, 9 or 10 (registry, policy store, revocation service) MUST cause rejection (reference: 503).
 
 The effective scopes are the **leaf's** scopes. The endpoint's required scopes MUST be covered by them.
 
@@ -313,9 +335,10 @@ The effective scopes are the **leaf's** scopes. The endpoint's required scopes M
 |---|---|
 | `resources` | 1–32 patterns of at most 256 characters, with no whitespace or control characters. A `*` may appear only as the last character, meaning prefix match. |
 | `spend.unit` | Non-empty string. Required if `spend` is present. |
-| `spend.per_call`, `spend.total` | Positive integers. At least one is required. |
-| `rate.count`, `rate.per` | Positive integers. `per` is at most 86400 seconds. |
-| `uses` | Positive integer |
+| `spend.unit` | 1–64 characters, no whitespace or control characters |
+| `spend.per_call`, `spend.total` | Positive integers ≤ 2⁵³−1. At least one is required. |
+| `rate.count`, `rate.per` | Positive integers ≤ 2⁵³−1. `per` is at most 86400 seconds. |
+| `uses` | Positive integer ≤ 2⁵³−1 |
 
 Any other top-level field makes the grant **invalid**, so a limit a verifier doesn't understand is never silently ignored.
 
@@ -349,7 +372,9 @@ A service declares, per endpoint, the `resource` the call touches (optional), th
 - checks that spent + `amount` ≤ `total`, that uses + 1 ≤ `uses`, and that fewer than `rate.count` calls fall inside the last `rate.per` seconds;
 - if every link passes, records the call on every link. If any fails, it records nothing.
 
-Status codes: budget exhausted → 402; uses exhausted → 403; rate limit reached → 429. Refunds MAY return spend (not uses or rate) to every link.
+Status codes: budget exhausted → 402; uses exhausted → 403; rate limit reached → 429. Refunds MAY return spend (not uses or rate) to every link, but never more than the request was charged.
+
+The counters MUST be shared (and the check-and-charge atomic) across every process enforcing limits for the same grants; otherwise N processes allow N× the limit. A verifier that can't reach its counter store MUST reject the call. Counters for a grant MAY be discarded once `exp + 60` has passed.
 
 ---
 
@@ -365,26 +390,45 @@ Status codes: budget exhausted → 402; uses exhausted → 403; rate limit reach
 - Revocations are keyed by `(iss, grant)`. A revocation signed by X only ever revokes grants **issued by X**, so it can't touch anyone else's grants.
 - Revoking a grant invalidates every chain that includes it, which means every delegation beneath it.
 - Revocation is permanent.
+- The body has exactly the fields `v, grant, iss, ts`; `grant` follows the grant-id format (§4.1), `iss` is an agent DID and `ts` an integer in [0, 2⁵³−1]. The envelope has exactly `body` and `sig`.
+
+### 6.1 Revocation proofs
+
+The signed revocation event *is* the proof. A registry that reports a grant as revoked (§7, `POST /v1/revocations/check`) returns the corresponding events in `proofs`. A relying party SHOULD verify each one: the body names the same `(iss, grant)`, and `sig` verifies against **some key the issuer has held** (from the issuer's verified log, including keys rotated away since). A claim without a valid proof is either treated as revoked anyway (fail closed, the reference default) or ignored (when a registry falsely revoking grants is the bigger risk); either way it should be logged.
+
+A proof can only show that something *was* revoked. A registry can still hide a revocation; §7.1 describes how to require several registries to collude for that.
 
 ---
 
 ## 7. Registry HTTP API
 
-All bodies are JSON. Errors are `{"detail": "<message>"}`.
+All bodies are JSON. Errors are `{"detail": "<message>"}`. Every response carries an `X-Request-ID` header (echoed from the request when it's 1–64 safe characters, generated otherwise).
 
-| Method & path | Body | Success | Errors |
+| Method & path | Body / query | Success | Errors |
 |---|---|---|---|
-| `POST /v1/identities` | Inception event (§2.2) | `201` resolution result | `400` invalid, or controller not active; `409` already registered |
+| `POST /v1/identities` | Inception event (§2.2) | `201` resolution result | `400` invalid, or controller not active; `401` registration token required; `409` already registered |
+| `GET /v1/identities` | `?after=<did>&limit=<1-1000>` | `200` `{"identities": [{"did","active"}], "next": <did or null>}` | `400` |
 | `POST /v1/identities/{did}/events` | Rotation or deactivation event | `200` resolution result | `400` invalid; `404` unknown DID; `409` concurrent update |
-| `GET /v1/identities/{did}` | — | `200` resolution result (`Cache-Control: max-age=30`) | `404` |
+| `GET /v1/identities/{did}` | — | `200` resolution result (`Cache-Control: max-age=30` by default) | `404` |
 | `GET /v1/identities/{did}/log` | — | `200` `{"did", "events": [ … ]}` | `404` |
-| `GET /v1/identities/{did}/agents` | — | `200` `{"controller", "agents": [{"did","active"}]}` | — |
+| `GET /v1/identities/{did}/agents` | `?after=<did>&limit=<1-1000>` | `200` `{"controller", "agents": [{"did","active"}], "next"}` | `400` |
 | `POST /v1/revocations` | Revocation (§6) | `201` `{"issuer","grant","revoked":true,"new":bool}` | `400` invalid or issuer inactive |
-| `POST /v1/revocations/check` | `{"grants": [[iss, id], …]}` (max 32) | `200` `{"revoked": [[iss, id], …]}` | `400` |
-| `GET /v1/whoami` | — (requires `AgentSig`) | `200` `{"did","kid"}` | `401` |
-| `GET /healthz` | — | `200` `{"ok": true}` | — |
+| `POST /v1/revocations/check` | `{"grants": [[iss, id], …]}` (max 32) | `200` `{"revoked": [[iss, id], …], "proofs": [event, …]}` (`proofs[i]` proves `revoked[i]`) | `400` |
+| `GET /v1/whoami` | — (requires `AgentSig`) | `200` `{"did","kid"}` | `401`, `503` |
+| `GET /v1/info` | — | `200` `{"software","version","protocols","schema_version","registration","max_event_bytes"}` | — |
+| `GET /healthz` | — | `200` `{"ok": true}` (liveness) | — |
+| `GET /readyz` | — | `200` `{"ok": true, "checks": {...}}` (database, Redis) | `503` when a dependency is down or the schema isn't current |
+| `GET /metrics` | — | `200` Prometheus text format (can be disabled) | — |
 
-Event bodies larger than 16 KiB are rejected with `413`.
+- A path `{did}` that isn't a `did:agent:` identifier answers `404`.
+- Request bodies larger than the configured limit (default 16 KiB) are rejected with `413` before they are read; events larger than 16 KiB always are.
+- `/v1/*` routes are rate-limited per client address (defaults: 60 writes and 1200 reads per minute; `/v1/revocations/check` counts as a read). Over the limit: `429` with `Retry-After`.
+- When the operator sets a registration token, `POST /v1/identities` requires the header `X-AgentAuth-Registration-Token`. Key events and revocations never need it: they are authorized by the identity's own signatures.
+- `proofs` was added in v0.4. Clients MUST tolerate its absence (older registries).
+
+### 7.1 Several registries
+
+Nothing in the protocol ties an identity to one registry. A client MAY submit events to several independent registries and, when resolving, fetch the log from each. Logs from honest registries are prefixes of one another (one may lag); a client MUST treat two logs that differ at the same `seq` as **equivocation** and fail closed, and SHOULD use the longest log otherwise. A client SHOULD also remember the newest `(seq, digest)` it has verified for each DID and reject any later log that is shorter or differs at that position. The reference implementation provides both (`RegistryPool`, `KelPins`).
 
 ---
 
@@ -400,8 +444,30 @@ Event bodies larger than 16 KiB are rejected with `413`.
 | Authorization scheme | `AgentSig` |
 | Grant header | `AgentGrant` |
 | Request clock skew | 120 s |
-| Nonce replay window | 240 s |
+| Nonce replay window | 241 s |
+| Nonce length | 16–128 characters |
+| `Authorization` header | ≤ 4096 bytes |
+| `AgentGrant` header | ≤ 32 KiB |
+| Largest integer in any signed number | 2⁵³ − 1 |
 | Grant clock skew | 60 s |
 | Default grant TTL | 900 s |
 | Maximum grant TTL | 86400 s |
 | Maximum chain length | 8 |
+
+---
+
+## 9. Changes in v0.4
+
+Formats and version strings are unchanged. Verification is stricter; every item below rejects input that v0.3 accepted:
+
+| Area | v0.4 rule |
+|---|---|
+| base64url | Only the canonical unpadded encoding is accepted (§1.1) |
+| JSON | Lone surrogates can't be canonicalized; the registry rejects duplicate keys and `NaN`/`Infinity` |
+| Events | Exact field sets for bodies and envelopes; `ts` format; `next` must be a well-formed digest; `controller_proof` only on inception with a controller; `meta` nested ≤ 16 levels (§2) |
+| `AgentSig` | No duplicate parameters; `ts`, `nonce`, `did`, `kid`, `aud` formats; header ≤ 4096 bytes (§3.1) |
+| Request path | Verified against the raw request target. (v0.3's FastAPI integration verified the *decoded* path, so requests to URLs with percent-encoding failed.) |
+| Grants | No unknown fields; formats for ids, DIDs, `kid`, audiences; `iss != sub`; no duplicate links; integers ≤ 2⁵³−1 (§4) |
+| Limits | Upper bounds on numbers and `spend.unit` (§5.1); refunds can't exceed the amount charged |
+| Revocations | Exact field sets and formats (§6) |
+| Failures | A dependency failure during verification rejects the request with 503 |

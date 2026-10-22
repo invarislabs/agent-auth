@@ -12,27 +12,35 @@ flowchart LR
         S[Sub-agent<br/>SDK + keys]
     end
     R[(Registry<br/>key event logs<br/>revocations)]
+    R2[(Optional second<br/>registry / witness)]
     SVC[Relying service<br/>RequestVerifier +<br/>GrantVerifier]
+    KV[(Redis<br/>replay cache +<br/>usage ledger)]
 
     H -- "grant (signed)" --> A
     A -- "delegated grant (narrower)" --> S
     H & A & S -- "register / rotate / deactivate" --> R
+    H & A & S -. "same events" .-> R2
     S -- "signed request + AgentGrant chain" --> SVC
-    SVC -- "resolve keys, replay logs,<br/>check revocations" --> R
+    SVC -- "resolve keys, replay + pin logs,<br/>check revocations (with proofs)" --> R
+    SVC -. "cross-check" .-> R2
+    SVC -- "nonces, budgets, rates, uses" --> KV
 ```
 
 | Component | Code | Role |
 |---|---|---|
 | **Crypto primitives** | `agentauth/crypto.py` | Ed25519 keys, base58btc/multibase, multikeys, canonical JSON, SHA-256 multihash digests |
 | **Identity** | `agentauth/identity.py` | Builds and verifies key event log (KEL) events; derives DIDs; produces DID documents. Pure functions with no I/O. |
-| **Request signing** | `agentauth/httpsig.py` | `AgentSig` header: signing and verification, replay (nonce) cache |
+| **Request signing** | `agentauth/httpsig.py` | `AgentSig` header: strict parsing, signing and verification, in-memory replay cache, `ReplayCache` interface |
 | **Grants** | `agentauth/grants.py` | Capability grants, delegation chains, scope algebra, revocation events, `GrantVerifier` |
 | **Limits** | `agentauth/limits.py` | Resource/spend/rate/use limits, attenuation rules, `UsageLedger` |
-| **Keystore** | `agentauth/keystore.py` | Encrypted key files; current and recovery keys stored separately |
-| **SDK** | `agentauth/sdk.py` | `AgentIdentity`, `RegistryClient`, httpx/httpx2 auth hook, caching resolvers for services |
-| **Integrations** | `agentauth/integrations.py` | FastAPI dependencies: `fastapi_dependency` (identity) and `fastapi_authorizer` (scopes + limits) |
-| **Registry** | `agentauth/server.py`, `agentauth/store.py` | HTTP service storing KELs and revocations (SQLite) |
-| **CLI** | `agentauth/cli.py` | `agentauth` command wrapping the SDK and registry |
+| **Keystore** | `agentauth/keystore.py` | Encrypted, atomically written key files; current, recovery and pending (mid-rotation) keys stored separately |
+| **SDK** | `agentauth/sdk.py` | `AgentIdentity` (incl. crash-safe `rotate_and_save`), `RegistryClient`, httpx/httpx2 auth hook, caching resolvers with log pinning, revocation checker with proof verification |
+| **Witnesses** | `agentauth/witness.py` | `KelPins`/`SQLitePins` (rollback and fork detection), `RegistryPool` (several registries cross-checked), `EquivocationError` |
+| **Shared-state backends** | `agentauth/backends/redis.py` | `RedisNonceCache`, `RedisUsageLedger` (atomic Lua) for multi-process/multi-replica services |
+| **Integrations** | `agentauth/integrations.py`, `agentauth/asgi.py` | FastAPI dependencies (`fastapi_dependency`, `fastapi_authorizer`); framework-agnostic `AgentAuthMiddleware`; `mcp_rules` for MCP servers |
+| **Audit log** | `agentauth/audit.py` | Hash-chained, optionally signed log of authorization decisions |
+| **Registry** | `agentauth/server.py`, `agentauth/store.py`, `agentauth/config.py`, `agentauth/ratelimit.py`, `agentauth/observability.py` | HTTP service storing KELs and revocations (SQLite or PostgreSQL, versioned schema), with env configuration, body and rate limits, health/readiness, Prometheus metrics, JSON logs |
+| **CLI** | `agentauth/cli.py` | `agentauth` command wrapping the SDK, the registry and database maintenance |
 
 ## The registry is a witness, not an authority
 
@@ -42,7 +50,7 @@ The registry stores each identity's key event log and serves it back. It **valid
 - Every later event is signed and hash-chained to the one before it.
 - `RegistryKeyResolver` (used by services) downloads the **full log** and replays it locally by default, instead of trusting the registry's summary.
 
-What the registry *can* do is withhold events or show different clients different logs. See [threat model: registry equivocation](threat-model.md#registry-equivocation).
+What the registry *can* do is withhold events or show different clients different logs. Relying services defend against that in two ways: they **pin** the newest log they've verified for each DID and reject anything shorter or conflicting later, and they can **cross-check several registries** (`RegistryPool`), taking the longest log that all of them agree on. See the [threat model](threat-model.md#a-malicious-registry).
 
 ## Lifecycle of an identity
 
@@ -76,8 +84,8 @@ sequenceDiagram
     SVC->>R: revocation check (cached)
     SVC->>SVC: scope covers "payments.buy" ✓
     Note over SVC: 3. Enforce limits
-    SVC->>SVC: resource & per-call spend on every link ✓<br/>ledger: charge budget/rate/uses on every link (all-or-nothing)
-    SVC-->>S: 200 OK (or 401 / 402 / 403 / 429)
+    SVC->>SVC: resource & per-call spend on every link ✓<br/>ledger: charge budget/rate/uses on every link (all-or-nothing, shared via Redis)
+    SVC-->>S: 200 OK (or 401 / 402 / 403 / 429 / 503)
 ```
 
 **Status codes:**
@@ -89,6 +97,8 @@ sequenceDiagram
 | **402** | Budget exhausted |
 | **429** | Rate limit reached (the message says when to retry) |
 | **400** | Malformed input, or a requested resource containing `..` |
+| **413** | Request body too large |
+| **503** | A dependency failed (registry, Redis, policy store) or equivocation was detected. AgentAuth fails closed: nothing is allowed that couldn't be fully checked. |
 
 ## How authority flows
 
@@ -114,6 +124,21 @@ Services cache lookups so they don't hit the registry on every request. The cach
 |---|---|---|
 | `RegistryKeyResolver` (keys and active status) | 30 s | A deactivated agent keeps working for up to 30 s. A **rotation** is picked up immediately, because a newer `kid` forces a refresh. |
 | `RegistryRevocationChecker` ("not revoked" answers) | 10 s (5 s in the example service) | A revoked grant keeps working for up to that long. "Revoked" answers are cached permanently. |
-| Nonce cache | 2 × max clock skew (240 s) | In-memory and per process (see [operations](operations.md)). |
+| Replay cache | 2 × max clock skew + 1 (241 s) | Must be shared (Redis) across processes; see [operations](operations.md#scaling) |
+| Log pins | forever (bounded) | Not a cache: the newest verified state per DID, used to detect rollback and forks |
 
 Set any TTL to `0` for immediate effect, at the cost of a registry round-trip per request.
+
+## Deployment shape
+
+```mermaid
+flowchart LR
+    C[Agents / CLI] -->|HTTPS| P[TLS proxy]
+    P --> R1[Registry replica]
+    P --> R2[Registry replica]
+    R1 & R2 --> PG[(PostgreSQL<br/>events, revocations)]
+    R1 & R2 --> RD[(Redis<br/>replay cache, rate limits)]
+    M[migrate job] --> PG
+```
+
+`docker-compose.yml` runs this shape on one host; the [operations guide](operations.md) covers configuration, migrations, health checks, metrics and scaling.
