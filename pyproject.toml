@@ -36,7 +36,7 @@ dev = [
     "httpx2>=2.13",  # used by starlette.testclient
     "ruff>=0.6",
     "mypy>=1.10",
-    "mcp>=2",  # only for the MCP integration test against a real MCP server
+    "mcp>=2.3.0",  # only for the MCP integration test against a real MCP server
 ]
 
 [project.urls]
