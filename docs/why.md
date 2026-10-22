@@ -59,4 +59,4 @@ Workload identity is great for services a platform team deploys. Agents break it
 
 - **Not a replacement for user login.** Humans still log in the way they do today. AgentAuth gives *them* an identity they can use to authorize agents.
 - **Not a policy engine.** AgentAuth checks that a request is within the authority it was granted. Deciding *which* principals your service trusts, and for what, is your call (see `root_policy` in the [integration guide](integration-guide.md)).
-- **Not production-hardened yet.** See the [threat model](threat-model.md) and [roadmap](roadmap.md) for what's still missing.
+- **Not independently audited yet.** v0.4 is hardened and extensively tested, but hasn't had an external security review. See the [threat model](threat-model.md) for the known gaps and the [roadmap](roadmap.md) for what's next.

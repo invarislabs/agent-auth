@@ -1,28 +1,39 @@
-"""Framework integrations for services that accept calls from agents."""
+"""FastAPI integrations for services that accept calls from agents.
+
+For other ASGI frameworks (or MCP servers) see `agentauth.asgi`.
+"""
+
+from __future__ import annotations
 
 import inspect
-from typing import Any, Callable, Optional
+import logging
+from collections.abc import Callable
+from typing import Any, Optional
 
 from fastapi import HTTPException, Request
 
+from .asgi import AgentAuthMiddleware, Requirement, mcp_rules, request_target  # noqa: F401  (re-exported)
 from .grants import HEADER as GRANT_HEADER
 from .grants import AuthorizedAgent, GrantError, GrantVerifier
 from .httpsig import AuthError, RequestVerifier, VerifiedAgent
 
+log = logging.getLogger("agentauth.integrations")
+
 
 async def _authenticate(verifier: RequestVerifier, request: Request) -> VerifiedAgent:
     body = await request.body()
-    path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     try:
         return verifier.verify(
             authorization=request.headers.get("authorization", ""),
             method=request.method,
-            path=path,
+            path=request_target(request.scope),
             body=body,
             grants=request.headers.get(GRANT_HEADER, ""),
+            host=request.headers.get("host"),
         )
     except AuthError as e:
-        raise HTTPException(e.status, str(e), headers={"WWW-Authenticate": "AgentSig"}) from None
+        headers = {"WWW-Authenticate": "AgentSig"} if e.status == 401 else None
+        raise HTTPException(e.status, str(e), headers=headers) from None
 
 
 def fastapi_dependency(verifier: RequestVerifier):
@@ -41,7 +52,7 @@ def fastapi_dependency(verifier: RequestVerifier):
     return require_agent
 
 
-def fastapi_authorizer(verifier: RequestVerifier, grants: GrantVerifier):
+def fastapi_authorizer(verifier: RequestVerifier, grants: GrantVerifier, *, audit: Any = None):
     """Build a factory of FastAPI dependencies that require a scope.
 
         require = fastapi_authorizer(request_verifier, grant_verifier)
@@ -65,6 +76,9 @@ def fastapi_authorizer(verifier: RequestVerifier, grants: GrantVerifier):
 
     Resource limits fail closed: if a grant restricts resources and the
     endpoint doesn't declare `resource`, the call is refused.
+
+    `audit` (an `agentauth.audit.AuditLog`) records every decision made after
+    the caller's signature verified.
     """
 
     async def _eval(fn: Optional[Callable], request: Request) -> Any:
@@ -78,6 +92,23 @@ def fastapi_authorizer(verifier: RequestVerifier, grants: GrantVerifier):
             raise HTTPException(400, f"could not determine resource/amount: {e}") from None
         return v
 
+    def _record(request, did, scopes, authz, outcome, status, reason, res=None, amt=0, unit=None):
+        """Write an audit entry. If the log can't be written, an allowed call is undone
+        (its charge refunded) and refused with 503: no unaudited actions."""
+        if audit is None:
+            return
+        try:
+            audit.record(agent=did, outcome=outcome, status=status, scopes=list(scopes), authz=authz,
+                         resource=res, amount=amt if isinstance(amt, int) and not isinstance(amt, bool) else 0,
+                         unit=unit, reason=reason, method=request.method, path=request_target(request.scope),
+                         request_id=request.headers.get("x-request-id"))
+        except Exception:
+            log.exception("audit log write failed")
+            if outcome == "allowed":
+                if authz is not None and authz.charged:
+                    authz.refund()
+                raise HTTPException(503, "audit log unavailable") from None
+
     def require(
         *scopes: str,
         resource: Optional[Callable] = None,
@@ -87,19 +118,23 @@ def fastapi_authorizer(verifier: RequestVerifier, grants: GrantVerifier):
         async def dependency(request: Request) -> AuthorizedAgent:
             agent = await _authenticate(verifier, request)
             header = request.headers.get(GRANT_HEADER, "")
+            authz = None
+            res, amt = None, 0
             try:
                 authz = grants.verify(header, requester=agent.did, audience=agent.audience)
-            except GrantError as e:
-                raise HTTPException(e.status, str(e)) from None
-            missing = [s for s in scopes if not authz.allows(s)]
-            if missing:
-                raise HTTPException(403, f"grant does not cover: {', '.join(missing)}")
-            res = await _eval(resource, request)
-            amt = await _eval(amount, request) or 0
-            try:
+                missing = [s for s in scopes if not authz.allows(s)]
+                if missing:
+                    raise GrantError(f"grant does not cover: {', '.join(missing)}", 403)
+                res = await _eval(resource, request)
+                amt = await _eval(amount, request) or 0
                 grants.enforce(authz, resource=None if res is None else str(res), amount=amt, unit=unit)
             except GrantError as e:
+                _record(request, agent.did, scopes, authz, "denied", e.status, str(e), res, amt, unit)
                 raise HTTPException(e.status, str(e)) from None
+            except HTTPException as e:
+                _record(request, agent.did, scopes, authz, "denied", e.status_code, str(e.detail), res, amt, unit)
+                raise
+            _record(request, agent.did, scopes, authz, "allowed", 200, None, res, amt, unit)
             return authz
 
         return dependency

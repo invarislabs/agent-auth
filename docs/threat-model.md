@@ -1,6 +1,8 @@
 # Threat model
 
-This document covers what AgentAuth protects, whom it protects against, and where the gaps are as of v0.3. Report security issues privately to the maintainers, not in public issues.
+This document covers what AgentAuth protects, whom it protects against, and where the gaps are as of v0.4. Report security issues privately (see [SECURITY.md](../SECURITY.md)), not in public issues.
+
+> **Status.** v0.4 is a hardened implementation with adversarial, concurrency and end-to-end tests. It has **not** had an independent security audit. "Mitigated" below means "designed and tested against", not "verified by a third party".
 
 ## Assets
 
@@ -12,13 +14,16 @@ This document covers what AgentAuth protects, whom it protects against, and wher
 | Key event logs | They decide which key is current for each DID |
 | Revocation records | Revoked authority must stay dead |
 | Usage ledger | It enforces budgets, rate limits and use counts |
+| Replay cache | It makes each signed request single-use |
+| Audit log | It answers "who authorized this?" after the fact |
 
 ## Trust assumptions
 
 - **Ed25519 and SHA-256 are secure**, and keys are generated with a good randomness source (the `cryptography` library, backed by the OS).
 - **Relying services are honest about themselves.** They configure their own audiences and root policy correctly, and declare resources and costs truthfully.
 - **Clocks are roughly synchronized**, within 60–120 seconds.
-- **The registry is available**, and honest about *what it has*, but it isn't trusted to forge anything. (Replaying logs protects against forgery. It doesn't protect against the registry withholding events or showing different clients different logs; see below.)
+- **Shared state is shared.** Every process that verifies requests for an audience uses the same replay cache and usage ledger (Redis), and that store is not reachable by attackers.
+- **At least one registry is honest about what it has** — or, with a single registry, it doesn't equivocate to clients that have never seen the other branch (see below). Registries are never trusted to *forge* anything.
 
 ## Adversaries and mitigations
 
@@ -26,11 +31,15 @@ This document covers what AgentAuth protects, whom it protects against, and wher
 
 | Attack | Mitigation |
 |---|---|
-| Replay a captured request against the same service | Single-use nonce per DID within the replay window, plus a ±120 s timestamp window |
+| Replay a captured request against the same service | Single-use nonce per DID within the replay window, plus a ±120 s timestamp window. With several replicas, the nonce store is shared through Redis (`RedisNonceCache`, one atomic `SET NX`); `agentauth serve --workers N` refuses to start without it. |
 | Replay it against a different service | The signature covers the audience (`host[:port]`), and each service only accepts its own |
-| Replay it against a different endpoint, or with a changed body | The signature covers method, path, query and a digest of the body |
+| Replay it against a different endpoint, or with a changed body | The signature covers method, raw path and query, and a digest of the body |
 | Swap or strip the `AgentGrant` header | The signature covers a digest of the grant header |
-| Steal credentials in transit | There are none to steal. Requests carry signatures, never secrets. (Use TLS anyway: request bodies may be sensitive.) |
+| Smuggle a second `did=` (or any parameter) into the header | Duplicate parameters invalidate the header |
+| Send a request signed for audience A to host B of the same app (to use a grant only valid at A) | Opt-in `RequestVerifier(bind_host=True)` requires the signed audience to equal `Host`. Needed only when one app serves several audiences and routes by host. |
+| Configure a replay cache that forgets nonces before their timestamps expire | `RequestVerifier` refuses a cache whose TTL is shorter than the replay window |
+| Re-encode a signature or grant (padding, stray characters) | Only canonical base64url is accepted |
+| Steal credentials in transit | There are none to steal. Requests carry signatures, never secrets. (Use TLS anyway: request bodies and grants may be sensitive.) |
 
 ### A stolen grant
 
@@ -48,8 +57,19 @@ A grant names its subject. Using it requires signing the request with the **subj
 
 **Impact:** full control of the identity, including rotating it to keys only the attacker knows.
 
-- **Mitigation today:** keep the recovery key off the agent's host (separate machine, vault, KMS or HSM). If the agent has a controller, the controller can still deactivate it.
+- **Mitigation:** keep the recovery key off the agent's host. The SDK accepts any `Signer` (an object with `public_multikey` and `sign()`), so the recovery key can live in an HSM, a KMS or a signing service; the default key files can be encrypted (scrypt N=2¹⁷ + AES-256-GCM) and stored in a separate directory. If the agent has a controller, the controller can still deactivate it.
 - **Gap:** without a controller, there's no recovery. Consider making controllers mandatory for high-value agents.
+
+### Losing key material by accident
+
+| Failure | Mitigation |
+|---|---|
+| Crash in the middle of a rotation, losing the new recovery key | `rotate_and_save` (and `agentauth rotate`) writes the new next key to `<name>.pending.json` *before* submitting, and resumes on the next run |
+| A registry that drops a submitted event, so the SDK swaps to keys nobody else knows | `commit()` only applies an event the registry's replayed log actually contains |
+| Torn or partially written key files | Writes go to a uniquely named temp file (`O_EXCL`, `O_NOFOLLOW`, mode 0600), are fsynced, renamed, and the directory is fsynced |
+| A pre-planted symlink at the temp path redirecting the secret (affected v0.3) | Temp names are random and never follow symlinks |
+| Group/world-readable key files | Loading warns |
+| A tampered key file with huge scrypt parameters (memory/CPU exhaustion) | Parameters are bounded |
 
 ### A malicious or compromised agent in a delegation chain
 
@@ -57,9 +77,20 @@ A grant names its subject. Using it requires signing the request with the **subj
 |---|---|
 | Delegate wider scopes, audiences, lifetime or depth than it holds | Checked at issue time by the SDK, and again independently by every verifier |
 | Drop or loosen a parent's limits | Every link's limits are enforced, and narrowing is checked on every link |
+| Add a constraint field verifiers don't know, hoping they ignore it | Unknown grant fields invalidate the grant |
 | Split a budget among many sub-agents to multiply it | Counters are charged against **every** link in the chain, so a parent's budget, rate and uses are shared by everything beneath it |
+| Issue a grant to itself, or repeat a link | `iss == sub` and duplicate links are rejected |
 | Keep acting after its authority is withdrawn | Revoking any upstream grant, or deactivating any upstream identity, invalidates the chain |
 | Revoke grants it didn't issue | Revocations are keyed by *(issuer, grant id)* and signed by the issuer |
+
+### A buggy or hostile service endpoint
+
+| Problem | Mitigation |
+|---|---|
+| Refunding more than was charged, minting budget | `refund()` is capped at what the request was charged |
+| Concurrent requests racing past a budget | Check-and-charge is atomic (a lock in-process, one Lua script in Redis) and tested under thread and multi-process load |
+| Ledger store down | The request is refused (503); limits never fail open |
+| Audit log can't be written | An allowed call is refunded and refused (503): no charged-but-unaudited actions |
 
 ### A principal a service doesn't trust
 
@@ -67,7 +98,7 @@ Grants rooted in anyone other than the principals in the service's root policy a
 
 ### Resource-name tricks
 
-A requested resource containing a `.` or `..` path segment, a `*`, or control characters is rejected before matching, so `/reports/../hr/salaries.csv` can't slip past a `/reports/*` limit. Services should still canonicalize resource names consistently. See the [integration guide](integration-guide.md#3-resource-and-spend-limits).
+A requested resource containing a `.` or `..` path segment, a `*`, or control characters is rejected before matching, so `/reports/../hr/salaries.csv` can't slip past a `/reports/*` limit. Services should still canonicalize resource names consistently (for example, decide whether `%2F` means `/`). See the [integration guide](integration-guide.md#3-resource-and-spend-limits).
 
 ### A malicious registry
 
@@ -76,28 +107,39 @@ A requested resource containing a `.` or `..` path segment, a `*`, or control ch
 | Invent an identity, or reassign a DID to other keys | DIDs are self-certifying. Services replay the full log (`RegistryKeyResolver(verify_logs=True)`, the default). |
 | Forge a rotation or deactivation | Every event must be signed, chained, and satisfy pre-rotation |
 | Squat on a controller relationship | The controller must countersign the inception with its current key |
-| Forge a revocation | Revocations must be signed by the grant's issuer. Services currently trust the registry's answer to a revocation check. See the gaps below. |
+| Roll a log back (e.g. hide a deactivation) after a service has seen the newer version | The resolver pins the newest `(seq, digest)` it verified per DID (in memory, or persistently with `SQLitePins`). A shorter or different log raises `EquivocationError` and requests fail with 503. |
+| Withhold an event the service has never seen | With `RegistryPool`, events are written to several registries and reads take the longest consistent log, so *every* registry must withhold it. Every registry's revocation proof is checked, so one registry can't mask another's. |
+| Serve two different histories (fork) | Detected when one client sees both: across registries in a pool, or over time through pins |
+| Claim a grant is revoked when it isn't (denial of service) | The registry returns the issuer-signed revocation as a proof; `RegistryRevocationChecker` verifies it against the issuer's key history. Unproven claims are denied by default (fail closed) and counted; `on_unproven="ignore"` honours only proven ones. |
+| Hide a revocation | Not detectable with one registry. With a pool, hiding requires all of them. |
+| Forge a revocation | Revocations must be signed by the grant's issuer |
 
-## Known gaps (v0.3)
+### Registry abuse (denial of service)
 
-### Registry equivocation
+| Attack | Mitigation |
+|---|---|
+| Large or slow request bodies | Bodies over the limit (16 KiB default) are refused before being read |
+| Flooding registration or reads | Per-address rate limits (shared through Redis when configured); optional registration token |
+| Making relying services hammer the registry by presenting fake newer `kid`s | Forced refreshes are limited to one per DID per second |
+| Crafted JSON (deep nesting, NaN, duplicate keys, wrong types) causing 500s | Strict parsing and type checks; fuzz-tested to never return 5xx |
 
-A malicious registry could **withhold** events (for example, hide a deactivation so a compromised agent keeps working) or show **different logs to different clients**. It could also falsely claim a grant is revoked (denial of service), or falsely claim it isn't.
+## Known gaps (v0.4)
 
-*Planned:* multiple independent witnesses that countersign events, clients that remember the logs they've seen so they can spot conflicting versions, and signed revocation proofs that services verify themselves.
+### Split views against a single client
+
+A registry can show a client that has never seen the other branch a consistent but different history (for example, a fork created with a stolen recovery key), and can hide events from a client that only ever talks to it. Pins and pools narrow this a lot but don't close it. Closing it needs gossip between clients or a public transparency log with signed tree heads; that's on the [roadmap](roadmap.md).
+
+### "Not revoked" can't be proven
+
+Revocation proofs show that something *was* revoked. Nothing proves the negative, so a lone dishonest registry can still hide a revocation (use a pool).
 
 ### Revocation and deactivation aren't instant
 
 Services cache for performance. By default a deactivation takes effect within 30 s, and a grant revocation within 5–10 s. Set the TTLs to 0 for sensitive endpoints.
 
-### State is in memory and per process
+### Shared state has to be configured
 
-The **nonce cache** and **usage ledger** live in memory, which has two consequences:
-
-- **Across replicas:** a request could be replayed against another replica within the timestamp window, and budgets, rates and uses are counted per replica, so N replicas allow up to N× the limit.
-- **On restart:** counters reset.
-
-*Mitigation:* back both with Redis or your database before running more than one replica. See [operations](operations.md#scaling).
+The defaults (`NonceCache`, `UsageLedger`) are in-memory and per process, which is only correct for exactly one process. Running more than one worker or replica without Redis allows a replay once per process and N× every limit. `agentauth serve` refuses `--workers > 1` without Redis, but a service you build yourself (or a registry started directly with `uvicorn --workers`) can't be checked for you. Redis itself must be persistent (AOF) if budgets must survive a Redis restart.
 
 ### Services must declare costs honestly
 
@@ -107,13 +149,21 @@ Spend limits only bind endpoints that report an `amount`. A service that forgets
 
 After an issuer rotates, its outstanding grants stop verifying and have to be re-issued. This is safe, since a compromised old key can't keep issuing valid grants, but it's operationally noisy for long-lived grants. Keep grants short.
 
-### No registration rate limiting
+### Audit logs are tamper-evident, not tamper-proof
 
-Anyone can register identities. A registry exposed to the internet should sit behind rate limiting or authentication.
+Hash-chaining and signing detect edits, but truncating the newest entries is only detectable against a head digest exported elsewhere. Export `AuditLog.head()` to a separate system.
+
+### Same key under two DIDs
+
+The request signature doesn't cover the `did` parameter. If one key is the current key of two DIDs (only possible if its holder registered both), a request signed for one could be replayed as the other within the window. Don't reuse keys across identities; the SDK never does.
+
+### Rate limiting fails open
+
+If Redis is down, the registry's rate limiter lets requests through (and logs an error), on purpose: refusing every request would be the outage the limiter exists to prevent. Replay protection and usage limits fail closed.
 
 ### Timing and side channels
 
-Signature checks use the `cryptography` library. Other comparisons (nonces, kids, digests) aren't constant-time. None of them are secret values, but this hasn't been reviewed.
+Signature checks use the `cryptography` library. Other comparisons (nonces, kids, digests) aren't constant-time; none of them are secret. The registration token is compared in constant time.
 
 ### Not independently audited
 

@@ -3,31 +3,45 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 import os
 import threading
 import time
+from collections import OrderedDict
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, Union
+from urllib.parse import quote
 
 import httpx
 
-from .crypto import KeyPair
+from .crypto import KeyPair, Signer, key_commitment, verify
+from .grants import DEFAULT_TTL, GrantChain, GrantError, issue, make_revocation, parse_revocation
 from .grants import HEADER as GRANT_HEADER
-from .grants import DEFAULT_TTL, GrantChain, issue, make_revocation
-from .limits import Limits
 from .httpsig import sign_request
 from .identity import (
     IdentityState,
+    event_digest,
+    is_agent_did,
     make_deactivation,
     make_inception,
     make_rotation,
     verify_inception,
     verify_log,
 )
-from .keystore import read_key_file, write_key_file
+from .keystore import read_key_file, remove_key_file, write_key_file
+from .limits import Limits
+from .witness import EquivocationError, KelPins
+
+log = logging.getLogger("agentauth.sdk")
+USER_AGENT = "agentauth-python"
 
 
 def _default_passphrase() -> Optional[str]:
+    """AGENTAUTH_PASSPHRASE, or the contents of the file named by AGENTAUTH_PASSPHRASE_FILE."""
+    path = os.environ.get("AGENTAUTH_PASSPHRASE_FILE")
+    if path:
+        with open(path, encoding="utf-8") as f:
+            return f.read().rstrip("\r\n") or None
     return os.environ.get("AGENTAUTH_PASSPHRASE") or None
 
 
@@ -39,16 +53,19 @@ class AgentIdentity:
     to rotate.
     """
 
-    def __init__(self, state: IdentityState, current_key: KeyPair, recovery_key: Optional[KeyPair]):
+    def __init__(self, state: IdentityState, current_key: Signer, recovery_key: Optional[Signer]):
+        if state.active and state.key != current_key.public_multikey:
+            raise ValueError("current key does not match the identity's current public key")
         self.state = state
         self.current_key = current_key
         self.recovery_key = recovery_key
         self._pending: Optional[tuple] = None
+        self.pending_next_key: Optional[Signer] = None  # loaded from <name>.pending.json, see rotate_and_save
 
     # -- creation ---------------------------------------------------------- #
 
     @classmethod
-    def create(cls, *, name: str = "", controller: Optional["AgentIdentity"] = None, meta: Optional[dict] = None):
+    def create(cls, *, name: str = "", controller: Optional[AgentIdentity] = None, meta: Optional[dict] = None):
         """Generate keys and a signed inception event. Returns (identity, event)."""
         current, nxt = KeyPair.generate(), KeyPair.generate()
         meta = dict(meta or {})
@@ -74,10 +91,14 @@ class AgentIdentity:
 
     # -- lifecycle events (not applied until the registry accepts them) ---- #
 
-    def prepare_rotation(self) -> dict:
+    def prepare_rotation(self, new_next: Optional[Signer] = None) -> dict:
+        """Build a rotation to the pre-committed key. `new_next` defaults to a fresh key
+        (pass an HSM/KMS-backed `Signer` to keep the next recovery key outside this process)."""
         if self.recovery_key is None:
             raise RuntimeError("rotation needs the recovery key file")
-        new_next = KeyPair.generate()
+        if not self.state.active:
+            raise RuntimeError("identity is deactivated")
+        new_next = new_next or KeyPair.generate()
         event = make_rotation(self.state, self.recovery_key, new_next)
         self._pending = ("rotation", event, new_next)
         return event
@@ -96,11 +117,20 @@ class AgentIdentity:
         return make_deactivation(child_state, self.did, self.current_key)
 
     def commit(self, accepted_state: IdentityState) -> None:
-        """Apply a pending event after the registry accepted it."""
+        """Apply a pending event after the registry accepted it.
+
+        Refuses unless `accepted_state` (normally a freshly verified log) really
+        contains the pending event, so a registry that dropped it can't make
+        the SDK swap to keys the rest of the world doesn't know about.
+        """
         if not self._pending:
             raise RuntimeError("nothing pending")
-        kind, _, new_next = self._pending
+        kind, event, new_next = self._pending
+        if accepted_state.did != self.did or accepted_state.seq != event["body"]["seq"] \
+                or accepted_state.last_digest != event_digest(event):
+            raise RuntimeError("the registry's log does not contain the submitted event; not committing")
         if kind == "rotation":
+            assert self.recovery_key is not None  # prepare_rotation checked it  # nosec B101
             self.current_key, self.recovery_key = self.recovery_key, new_next
         self.state = accepted_state
         self._pending = None
@@ -114,9 +144,17 @@ class AgentIdentity:
             did=self.did, kid=self.kid, key=self.current_key, method=method, url=url, body=body, grants=grants
         )
 
-    def httpx_auth(self, grants: Optional[GrantChain] = None) -> "AgentSigAuth":
+    def httpx_auth(self, grants: Optional[GrantChain] = None) -> AgentSigAuth:
         """httpx auth that signs requests and, if given, presents a grant chain."""
         return AgentSigAuth(self, grants)
+
+    def headers(self, method: str, url: str, body: bytes = b"", grants: Optional[GrantChain] = None) -> dict:
+        """Headers for any HTTP client: Authorization, plus AgentGrant when presenting a chain."""
+        enc = grants.encode() if grants is not None else ""
+        h = {"Authorization": self.authorization(method, url, body, enc)}
+        if enc:
+            h[GRANT_HEADER] = enc
+        return h
 
     # -- capability grants ------------------------------------------------- #
 
@@ -157,30 +195,114 @@ class AgentIdentity:
 
     # -- persistence ------------------------------------------------------- #
 
+    @staticmethod
+    def _paths(directory, name: str, recovery_dir) -> tuple:
+        if not name or "/" in name or "\\" in name or name.startswith("."):
+            raise ValueError(f"invalid identity name {name!r}")
+        d = Path(directory).expanduser()
+        r = Path(recovery_dir).expanduser() if recovery_dir else d
+        return d / f"{name}.key.json", r / f"{name}.recovery.json", r / f"{name}.pending.json"
+
     def save(self, directory: Path, name: str, passphrase: Optional[str] = None, recovery_dir: Optional[Path] = None):
         passphrase = passphrase if passphrase is not None else _default_passphrase()
-        directory = Path(directory).expanduser()
+        key_path, rec_path, _ = self._paths(directory, name, recovery_dir)
         extra = {"state": dataclasses.asdict(self.state)}
-        write_key_file(directory / f"{name}.key.json", did=self.did, role="current", key=self.current_key, extra=extra, passphrase=passphrase)
+        # Order matters for crash recovery (see rotate_and_save): current key first, then recovery.
+        write_key_file(key_path, did=self.did, role="current", key=self.current_key, extra=extra, passphrase=passphrase)
         if self.recovery_key is not None:
-            rdir = Path(recovery_dir).expanduser() if recovery_dir else directory
-            write_key_file(rdir / f"{name}.recovery.json", did=self.did, role="recovery", key=self.recovery_key, extra={}, passphrase=passphrase)
+            write_key_file(rec_path, did=self.did, role="recovery", key=self.recovery_key, extra={}, passphrase=passphrase)
 
     @classmethod
     def load(cls, directory: Path, name: str, passphrase: Optional[str] = None, recovery_dir: Optional[Path] = None):
         passphrase = passphrase if passphrase is not None else _default_passphrase()
-        directory = Path(directory).expanduser()
-        doc, current = read_key_file(directory / f"{name}.key.json", passphrase)
+        key_path, rpath, ppath = cls._paths(directory, name, recovery_dir)
+        doc, current = read_key_file(key_path, passphrase)
+        if doc.get("role") != "current":
+            raise ValueError(f"{key_path} is not a current-key file")
         st = dict(doc["state"])
         st["history"] = [tuple(h) for h in st["history"]]
         state = IdentityState(**st)
-        rpath = (Path(recovery_dir).expanduser() if recovery_dir else directory) / f"{name}.recovery.json"
+        if doc["did"] != state.did:
+            raise ValueError("key file DID does not match its recorded state")
         recovery = None
         if rpath.exists():
             rdoc, recovery = read_key_file(rpath, passphrase)
-            if rdoc["did"] != state.did:
+            if rdoc["did"] != state.did or rdoc.get("role") != "recovery":
                 raise ValueError("recovery file belongs to a different DID")
-        return cls(state, current, recovery)
+        ident = cls(state, current, recovery)
+        if ppath.exists():
+            pdoc, pending = read_key_file(ppath, passphrase)
+            if pdoc["did"] != state.did or pdoc.get("role") != "pending-next":
+                raise ValueError("pending rotation file belongs to a different DID")
+            ident.pending_next_key = pending
+            log.warning("%s has an unfinished rotation; run rotate again to complete it", name)
+        return ident
+
+    def rotate_and_save(
+        self,
+        registry: Any,
+        directory: Path,
+        name: str,
+        passphrase: Optional[str] = None,
+        recovery_dir: Optional[Path] = None,
+    ) -> AgentIdentity:
+        """Rotate and persist keys without ever risking the loss of the new recovery key.
+
+        1. The new next key is written to ``<name>.pending.json`` *before* the
+           rotation is submitted.
+        2. The rotation is submitted, and the registry's log is replayed to
+           confirm it.
+        3. The key files are rewritten and the pending file removed.
+
+        If the process dies anywhere in between, calling this again resumes:
+        it checks whether the registry already applied the rotation and
+        finishes it with the saved pending key instead of generating a new one.
+        """
+        passphrase = passphrase if passphrase is not None else _default_passphrase()
+        _, _, ppath = self._paths(directory, name, recovery_dir)
+        if self.recovery_key is None:
+            raise RuntimeError("rotation needs the recovery key file")
+
+        if self.pending_next_key is not None:
+            pending = self.pending_next_key
+            remote = registry.verified_state(self.did)
+            if remote.active and remote.next == key_commitment(pending.public_multikey):
+                # The earlier rotation went through (the registry now commits to the pending
+                # key). Depending on where we crashed, the key it made current is either still
+                # our recovery key, or already saved as our current key.
+                if remote.key == self.recovery_key.public_multikey:
+                    self.current_key = self.recovery_key
+                elif remote.key != self.current_key.public_multikey:
+                    raise RuntimeError("registry state diverged from the local key files; refusing to rotate")
+                self.recovery_key, self.state, self.pending_next_key = pending, remote, None
+                self.save(directory, name, passphrase, recovery_dir)
+                remove_key_file(ppath)
+                return self
+            if (remote.seq != self.state.seq or remote.key != self.current_key.public_multikey
+                    or remote.next != key_commitment(self.recovery_key.public_multikey)):
+                raise RuntimeError("registry state diverged from the local key files; refusing to rotate")
+            new_next = pending  # not applied: retry with the same saved key
+        else:
+            new_next = KeyPair.generate()
+
+        event = self.prepare_rotation(new_next)
+        if self.pending_next_key is None:
+            write_key_file(ppath, did=self.did, role="pending-next", key=new_next, extra={}, passphrase=passphrase)
+            self.pending_next_key = new_next
+        registry.submit(self.did, event)
+        self.commit(registry.verified_state(self.did))
+        self.pending_next_key = None
+        self.save(directory, name, passphrase, recovery_dir)
+        remove_key_file(ppath)
+        return self
+
+    def refresh(self, registry: Any) -> AgentIdentity:
+        """Re-read this identity's state from the registry's (verified) log."""
+        remote = registry.verified_state(self.did)
+        if remote.active and remote.key != self.current_key.public_multikey:
+            raise RuntimeError("the registry says this identity uses a different key; were these keys rotated elsewhere?")
+        self.state = remote
+        return self
 
 
 class AgentSigAuth(httpx.Auth):
@@ -220,29 +342,75 @@ class RegistryError(Exception):
         self.status, self.detail = status, detail
 
 
-class RegistryClient:
-    def __init__(self, base_url: str, *, client: Optional[httpx.Client] = None, timeout: float = 10.0):
-        self.base_url = base_url.rstrip("/")
-        self._http = client or httpx.Client(base_url=self.base_url, timeout=timeout)
+def _did_path(did: str) -> str:
+    if not is_agent_did(did):
+        raise ValueError(f"not a did:agent identifier: {did[:80]!r}")
+    return quote(did, safe=":")
 
-    def _check(self, r: httpx.Response) -> dict:
+
+class RegistryClient:
+    """HTTP client for one registry.
+
+    Idempotent reads are retried (`retries` times, with backoff) on connection
+    errors and 502/503/504. Writes are never retried automatically.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        client: Optional[httpx.Client] = None,
+        timeout: float = 10.0,
+        retries: int = 2,
+        registration_token: Optional[str] = None,
+    ):
+        self.base_url = base_url.rstrip("/")
+        self.retries = retries
+        self.registration_token = registration_token or os.environ.get("AGENTAUTH_REGISTRATION_TOKEN") or None
+        self._http = client or httpx.Client(base_url=self.base_url, timeout=timeout,
+                                            headers={"User-Agent": USER_AGENT})
+
+    def _check(self, r) -> dict:
         if r.status_code >= 400:
             try:
                 detail = r.json().get("detail", r.text)
             except ValueError:
                 detail = r.text
             raise RegistryError(r.status_code, str(detail))
-        return r.json()
+        try:
+            return r.json()
+        except ValueError:
+            raise RegistryError(r.status_code, "registry returned a non-JSON response") from None
+
+    def _get(self, path: str, **kw) -> dict:
+        delay = 0.2
+        for attempt in range(self.retries + 1):
+            try:
+                r = self._http.get(path, **kw)
+                if r.status_code in (502, 503, 504) and attempt < self.retries:
+                    raise httpx.TransportError(f"registry answered {r.status_code}")
+                return self._check(r)
+            except httpx.TransportError:
+                if attempt >= self.retries:
+                    raise
+                time.sleep(delay)
+                delay *= 2
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    def _post(self, path: str, body: Any, headers: Optional[dict] = None) -> dict:
+        return self._check(self._http.post(path, json=body, headers=headers))
 
     # -- lifecycle --------------------------------------------------------- #
 
     def register(self, event: dict) -> dict:
-        return self._check(self._http.post("/v1/identities", json=event))
+        headers = {"X-AgentAuth-Registration-Token": self.registration_token} if self.registration_token else None
+        return self._post("/v1/identities", event, headers)
 
     def submit(self, did: str, event: dict) -> dict:
-        return self._check(self._http.post(f"/v1/identities/{did}/events", json=event))
+        return self._post(f"/v1/identities/{_did_path(did)}/events", event)
 
     def rotate(self, identity: AgentIdentity) -> AgentIdentity:
+        """Rotate in memory. Prefer `identity.rotate_and_save(...)`, which can't lose the new recovery key."""
         event = identity.prepare_rotation()
         self.submit(identity.did, event)
         identity.commit(self.verified_state(identity.did))
@@ -260,14 +428,31 @@ class RegistryClient:
 
     # -- resolution -------------------------------------------------------- #
 
+    def info(self) -> dict:
+        return self._get("/v1/info")
+
     def resolve(self, did: str) -> dict:
-        return self._check(self._http.get(f"/v1/identities/{did}"))
+        return self._get(f"/v1/identities/{_did_path(did)}")
 
     def log(self, did: str) -> list:
-        return self._check(self._http.get(f"/v1/identities/{did}/log"))["events"]
+        data = self._get(f"/v1/identities/{_did_path(did)}/log")
+        events = data.get("events") if isinstance(data, dict) else None
+        if not isinstance(events, list):
+            raise RegistryError(502, "registry returned a malformed log")
+        return events
 
     def controlled_agents(self, did: str) -> list:
-        return self._check(self._http.get(f"/v1/identities/{did}/agents"))["agents"]
+        out: list = []
+        after: Optional[str] = ""
+        while True:
+            page = self._get(f"/v1/identities/{_did_path(did)}/agents", params={"after": after, "limit": 1000})
+            out += page["agents"]
+            after = page.get("next")
+            if not after:
+                return out
+
+    def list_identities(self, after: str = "", limit: int = 100) -> dict:
+        return self._get("/v1/identities", params={"after": after, "limit": limit})
 
     def verified_state(self, did: str) -> IdentityState:
         """Fetch the full event log and replay it locally — trusts no one."""
@@ -277,18 +462,38 @@ class RegistryClient:
         return state
 
     def whoami(self, identity: AgentIdentity) -> dict:
-        return self._check(self._http.get("/v1/whoami", auth=identity.httpx_auth()))
+        return self._get("/v1/whoami", auth=identity.httpx_auth())
 
     # -- grant revocation -------------------------------------------------- #
 
+    def submit_revocation(self, event: dict) -> dict:
+        return self._post("/v1/revocations", event)
+
     def revoke_grant(self, issuer: AgentIdentity, grant_id: str) -> dict:
         """Revoke a grant you issued. Everything delegated beneath it dies too."""
-        ev = make_revocation(issuer_did=issuer.did, issuer_key=issuer.current_key, grant_id=grant_id)
-        return self._check(self._http.post("/v1/revocations", json=ev))
+        return self.submit_revocation(
+            make_revocation(issuer_did=issuer.did, issuer_key=issuer.current_key, grant_id=grant_id))
+
+    def revocation_proofs(self, pairs: list) -> dict:
+        """{(issuer, grant_id): signed revocation event-or-None} for the pairs the registry says are revoked.
+
+        The value is None when the registry claims a revocation but sent no
+        proof (registries older than v0.4).
+        """
+        r = self._post("/v1/revocations/check", {"grants": [list(p) for p in pairs]})
+        revoked = [tuple(p) for p in r.get("revoked", [])]
+        proofs = r.get("proofs")
+        out: dict = {}
+        for i, p in enumerate(revoked):
+            out[p] = proofs[i] if isinstance(proofs, list) and i < len(proofs) else None
+        return out
 
     def revoked(self, pairs: list) -> set:
-        r = self._check(self._http.post("/v1/revocations/check", json={"grants": [list(p) for p in pairs]}))
+        r = self._post("/v1/revocations/check", {"grants": [list(p) for p in pairs]})
         return {tuple(p) for p in r["revoked"]}
+
+
+Registry = Union[RegistryClient, Any]  # a RegistryClient or a witness.RegistryPool
 
 
 class RegistryRevocationChecker:
@@ -298,13 +503,66 @@ class RegistryRevocationChecker:
     results for `ttl` seconds, which bounds how long a revoked grant can still
     be honoured. Use ttl=0 for immediate effect at the cost of a registry call
     per request.
+
+    Proofs: from v0.4 the registry returns the issuer-signed revocation for
+    every grant it reports as revoked. With `verify_proofs=True` (the default)
+    each one is checked against the issuer's key history (from its verified
+    log), so a registry can't revoke grants nobody revoked. What happens to a
+    claim *without* a valid proof is `on_unproven`:
+
+    * ``"deny"`` (default, fail closed): treat it as revoked anyway, and log it.
+    * ``"ignore"``: only verified proofs count. Use this when an attacker who
+      controls the registry denying service is a bigger risk than an old
+      registry without proof support.
+
+    A registry can still *hide* a revocation. Run several (`RegistryPool`) to
+    make that require collusion.
     """
 
-    def __init__(self, registry: RegistryClient, ttl: float = 10.0):
+    def __init__(self, registry: Registry, ttl: float = 10.0, *, verify_proofs: bool = True,
+                 on_unproven: str = "deny", max_entries: int = 100_000):
+        if on_unproven not in ("deny", "ignore"):
+            raise ValueError("on_unproven must be 'deny' or 'ignore'")
         self.registry, self.ttl = registry, ttl
+        self.verify_proofs, self.on_unproven = verify_proofs, on_unproven
+        self.max_entries = max_entries
         self._revoked: set = set()
-        self._ok: dict = {}
+        self._ok: OrderedDict = OrderedDict()
         self._lock = threading.Lock()
+        self.unproven_claims = 0
+
+    def _proof_ok(self, pair: tuple, proof: Any) -> bool:
+        iss, gid = pair
+        try:
+            body = parse_revocation(proof)
+        except GrantError:
+            return False
+        if body["iss"] != iss or body["grant"] != gid:
+            return False
+        from .crypto import canonical_json
+
+        state = self.registry.verified_state(iss)
+        msg = canonical_json(body)
+        return any(verify(k, msg, proof["sig"]) for _, k in state.history)
+
+    def _ask(self, pairs: list) -> set:
+        if not self.verify_proofs:
+            return set(self.registry.revoked(pairs))
+        claims = self.registry.revocation_proofs(pairs)
+        out = set()
+        for pair, proof in claims.items():
+            if pair not in pairs:
+                continue
+            # A RegistryPool returns every registry's proof; one valid proof is enough.
+            candidates = proof if isinstance(proof, list) else [proof]
+            if any(p is not None and self._proof_ok(pair, p) for p in candidates):
+                out.add(pair)
+                continue
+            self.unproven_claims += 1
+            log.warning("registry claims %s is revoked without a valid proof (%s)", pair, self.on_unproven)
+            if self.on_unproven == "deny":
+                out.add(pair)
+        return out
 
     def __call__(self, pairs: list) -> set:
         now = time.time()
@@ -316,25 +574,87 @@ class RegistryRevocationChecker:
             unknown = [p for p in pairs if self._ok.get(p, 0) <= now]
         if not unknown:
             return set()
-        revoked = self.registry.revoked(unknown)
+        revoked = self._ask(unknown)
         with self._lock:
             self._revoked |= revoked
             for p in unknown:
-                if p not in revoked:
+                if p not in revoked and self.ttl > 0:
                     self._ok[p] = now + self.ttl
+                    self._ok.move_to_end(p)
+            while len(self._ok) > self.max_entries:
+                self._ok.popitem(last=False)
         return revoked
 
 
 class RegistryKeyResolver:
     """For relying parties: resolves an agent's current key via a registry, with a short cache.
 
-    Uses full log replay by default so a compromised registry can't substitute keys.
+    * Replays the full log by default (`verify_logs=True`), so a compromised
+      registry can't substitute keys.
+    * Pins every log it has verified (`pins`, in memory by default; pass
+      `witness.SQLitePins(path)` to persist). A registry that later serves a
+      shorter log (hiding events) or a conflicting one raises
+      `EquivocationError`, which verifiers turn into a 503.
+    * Accepts a `witness.RegistryPool` instead of a single registry to
+      cross-check several.
+    * Forced refreshes (when a caller presents a newer kid than cached) are
+      limited to one per DID per `min_refresh_interval` seconds, so callers
+      can't use them to hammer the registry.
     """
 
-    def __init__(self, registry: RegistryClient, ttl: float = 30.0, verify_logs: bool = True):
+    def __init__(
+        self,
+        registry: Registry,
+        ttl: float = 30.0,
+        verify_logs: bool = True,
+        *,
+        pins: Optional[KelPins] = None,
+        max_entries: int = 100_000,
+        min_refresh_interval: float = 1.0,
+    ):
         self.registry, self.ttl, self.verify_logs = registry, ttl, verify_logs
-        self._cache: dict = {}
+        self.pins = pins if pins is not None else KelPins()
+        self.max_entries = max_entries
+        self.min_refresh_interval = min_refresh_interval
+        self._cache: OrderedDict = OrderedDict()
+        self._forced: dict = {}
         self._lock = threading.Lock()
+        # Fetch, pin check and cache write for one DID happen under one of these
+        # (striped) locks, so concurrent requests can't interleave them.
+        self._did_locks = [threading.Lock() for _ in range(64)]
+
+    def _fetch_verified(self, did: str) -> Optional[tuple]:
+        events = self.registry.log(did)
+        st = verify_log(events)
+        if st.did != did:
+            raise ValueError("registry returned a log for a different DID")
+        self.pins.check_and_update(did, events)
+        return (st.key, st.key_id) if st.active and st.key else None
+
+    def _fetch(self, did: str) -> Optional[tuple]:
+        try:
+            if self.verify_logs:
+                try:
+                    return self._fetch_verified(did)
+                except EquivocationError as e:
+                    if "rolled back" not in str(e):
+                        raise
+                    # A registry behind a load balancer may briefly serve a lagging replica.
+                    # Ask once more before raising the alarm.
+                    time.sleep(0.05)
+                    return self._fetch_verified(did)
+            doc = self.registry.resolve(did)
+            vms = doc["didDocument"]["verificationMethod"]
+            return (vms[0]["publicKeyMultibase"], vms[0]["id"]) if vms else None
+        except RegistryError as e:
+            if e.status == 404:
+                if self.verify_logs and self.pins.get(did) is not None:
+                    raise EquivocationError(did, "registry no longer knows an identity it served before") from None
+                return None
+            raise
+        except EquivocationError as e:
+            log.critical("registry equivocation detected: %s %s", e, e.evidence)
+            raise
 
     def __call__(self, did: str) -> Optional[tuple]:
         now = time.time()
@@ -342,23 +662,30 @@ class RegistryKeyResolver:
             hit = self._cache.get(did)
             if hit and hit[0] > now:
                 return hit[1]
-        try:
-            if self.verify_logs:
-                st = self.registry.verified_state(did)
-                value = (st.key, st.key_id) if st.active and st.key else None
-            else:
-                doc = self.registry.resolve(did)
-                vms = doc["didDocument"]["verificationMethod"]
-                value = (vms[0]["publicKeyMultibase"], vms[0]["id"]) if vms else None
-        except RegistryError as e:
-            if e.status == 404:
-                value = None
-            else:
-                raise
-        with self._lock:
-            self._cache[did] = (now + self.ttl, value)
+        with self._did_locks[hash(did) % len(self._did_locks)]:
+            with self._lock:  # another thread may have just fetched it
+                hit = self._cache.get(did)
+                if hit and hit[0] > time.time():
+                    return hit[1]
+            value = self._fetch(did)
+            with self._lock:
+                if self.ttl > 0:
+                    self._cache[did] = (time.time() + self.ttl, value)
+                    self._cache.move_to_end(did)
+                    while len(self._cache) > self.max_entries:
+                        self._cache.popitem(last=False)
         return value
 
+    def history(self, did: str) -> list:
+        """Every key `did` has held, as [(seq, multikey)] (from its verified log)."""
+        return list(self.registry.verified_state(did).history)
+
     def invalidate(self, did: str) -> None:
+        now = time.time()
         with self._lock:
+            if now - self._forced.get(did, float("-inf")) < self.min_refresh_interval:
+                return  # refreshed very recently; keep the cached answer
+            self._forced[did] = now
+            if len(self._forced) > self.max_entries:
+                self._forced = {k: v for k, v in self._forced.items() if now - v < self.min_refresh_interval}
             self._cache.pop(did, None)

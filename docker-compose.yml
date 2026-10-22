@@ -1,0 +1,74 @@
+# A complete registry deployment: PostgreSQL, Redis, a one-shot migration job
+# and the registry (3 worker processes sharing Redis for replay protection).
+#
+#   cp .env.example .env      # then edit the passwords
+#   docker compose up -d
+#   curl http://localhost:8000/readyz
+#
+# Put a TLS-terminating reverse proxy in front for anything beyond local use,
+# and set AGENTAUTH_AUDIENCES to the public host name clients use.
+
+x-registry-env: &registry-env
+  AGENTAUTH_DATABASE_URL: postgresql://agentauth:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/agentauth
+  AGENTAUTH_REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@redis:6379/0
+  AGENTAUTH_AUDIENCES: ${AGENTAUTH_AUDIENCES:-localhost:8000,127.0.0.1:8000}
+  AGENTAUTH_AUTO_MIGRATE: "false"
+  AGENTAUTH_TRUSTED_PROXY_HOPS: ${AGENTAUTH_TRUSTED_PROXY_HOPS:-0}
+  AGENTAUTH_RATE_LIMIT_WRITES: ${AGENTAUTH_RATE_LIMIT_WRITES:-60/60}
+  AGENTAUTH_RATE_LIMIT_READS: ${AGENTAUTH_RATE_LIMIT_READS:-1200/60}
+  AGENTAUTH_REGISTRATION_TOKEN: ${AGENTAUTH_REGISTRATION_TOKEN:-}
+  AGENTAUTH_LOG_LEVEL: ${AGENTAUTH_LOG_LEVEL:-INFO}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentauth
+      POSTGRES_DB: agentauth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentauth -d agentauth"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # AOF persistence so usage counters and replay entries survive a Redis restart.
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    image: agentauth-registry:local
+    command: ["db", "migrate"]
+    environment: *registry-env
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  registry:
+    image: agentauth-registry:local
+    command: ["serve", "--host", "0.0.0.0", "--port", "8000", "--workers", "3"]
+    environment: *registry-env
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
