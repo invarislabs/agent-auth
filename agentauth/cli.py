@@ -8,9 +8,13 @@ import os
 import sys
 from pathlib import Path
 
+import httpx
+
+from . import __version__
 from .grants import GrantChain, GrantError
 from .limits import LimitError, Limits
-from .sdk import AgentIdentity, RegistryClient, RegistryError
+from .sdk import AgentIdentity, RegistryClient, RegistryError, _default_passphrase
+from .witness import EquivocationError, RegistryPool
 
 DEFAULT_REGISTRY = os.environ.get("AGENTAUTH_REGISTRY", "http://127.0.0.1:8000")
 DEFAULT_DIR = os.environ.get("AGENTAUTH_HOME", "~/.agentauth")
@@ -25,6 +29,9 @@ def _load(args, name: str) -> AgentIdentity:
 
 
 def _save(args, ident: AgentIdentity, name: str) -> None:
+    if not _default_passphrase():
+        print("warning: key files are stored unencrypted; set AGENTAUTH_PASSPHRASE (or "
+              "AGENTAUTH_PASSPHRASE_FILE) to encrypt them", file=sys.stderr)
     ident.save(Path(args.dir), name, recovery_dir=args.recovery_dir)
 
 
@@ -72,9 +79,11 @@ def cmd_log(args, reg: RegistryClient):
 def cmd_rotate(args, reg: RegistryClient):
     ident = _load(args, args.name)
     old = ident.kid
-    reg.rotate(ident)
-    _save(args, ident, args.name)
-    _out({"did": ident.did, "old_kid": old, "new_kid": ident.kid})
+    resumed = ident.pending_next_key is not None
+    if not _default_passphrase():
+        print("warning: key files are stored unencrypted; set AGENTAUTH_PASSPHRASE to encrypt them", file=sys.stderr)
+    ident.rotate_and_save(reg, Path(args.dir), args.name, recovery_dir=args.recovery_dir)
+    _out({"did": ident.did, "old_kid": old, "new_kid": ident.kid, "resumed_unfinished_rotation": resumed})
 
 
 def cmd_deactivate(args, reg: RegistryClient):
@@ -157,17 +166,95 @@ def cmd_revoke(args, reg: RegistryClient):
 def cmd_serve(args, reg):
     import uvicorn
 
+    from .config import Settings
+    from .observability import configure_logging
     from .server import create_app
 
-    audiences = {f"{args.host}:{args.port}", f"localhost:{args.port}", f"127.0.0.1:{args.port}"}
+    settings = Settings.from_env()
+    if args.db:
+        settings.database_url = args.db
+    if "AGENTAUTH_AUDIENCES" not in os.environ:
+        settings.audiences = {f"{args.host}:{args.port}", f"localhost:{args.port}", f"127.0.0.1:{args.port}"}
     if args.audience:
-        audiences |= set(args.audience)
-    uvicorn.run(create_app(db_path=args.db, audiences=audiences), host=args.host, port=args.port)
+        settings.audiences |= {a.lower() for a in args.audience}
+    settings.validate()
+    configure_logging(settings.log_level, settings.log_format)
+    if args.workers > 1 and not settings.redis_url:
+        # Each worker would keep its own replay cache, so a signed request could be replayed once per worker.
+        sys.exit("error: --workers > 1 needs a shared replay cache; set AGENTAUTH_REDIS_URL")
+    if args.workers > 1:
+        # Each worker builds its own app from the environment.
+        os.environ["AGENTAUTH_DATABASE_URL"] = settings.database_url
+        os.environ["AGENTAUTH_AUDIENCES"] = ",".join(sorted(settings.audiences))
+        uvicorn.run("agentauth.server:get_app", factory=True, host=args.host, port=args.port,
+                    workers=args.workers, log_config=None, proxy_headers=False)
+    else:
+        uvicorn.run(create_app(settings=settings), host=args.host, port=args.port, log_config=None,
+                    proxy_headers=False)
+
+
+def _open_db(args):
+    from .config import Settings
+    from .store import open_store
+
+    url = args.database_url or Settings.from_env().database_url
+    return open_store(url, auto_migrate=False, check=False)
+
+
+def cmd_db(args, reg):
+    from .store import SCHEMA_VERSION, SchemaError
+
+    store = _open_db(args)
+    try:
+        if args.action == "migrate":
+            applied = store.migrate()
+            _out({"applied": applied, "schema_version": store.schema_version()})
+        elif args.action == "status":
+            pending = store.pending_migrations()
+            _out({"schema_version": store.schema_version(), "code_schema_version": SCHEMA_VERSION,
+                  "pending": [{"version": v, "description": d} for v, d in pending]})
+        elif args.action == "verify":
+            store.check_schema()
+            problems = store.verify_integrity()
+            _out({"ok": not problems, "problems": problems, **store.stats()})
+            if problems:
+                sys.exit(1)
+    except SchemaError as e:
+        sys.exit(f"error: {e}")
+    finally:
+        store.close()
+
+
+def cmd_sync(args, reg):
+    if not isinstance(reg, RegistryPool):
+        sys.exit("error: sync needs several registries, e.g. --registry https://a,https://b")
+    _out(reg.sync(args.did))
+
+
+def cmd_audit(args, reg):
+    from .audit import AuditLog
+
+    if not Path(args.path).exists():
+        sys.exit(f"error: {args.path} does not exist")
+    head = None
+    if args.head:
+        seq, _, dg = args.head.partition(":")
+        head = (int(seq), dg)
+    audit = AuditLog(args.path)
+    problems = audit.verify(public_key=args.key, expected_head=head)
+    _out({"ok": not problems, "head": audit.head(), "problems": problems})
+    if problems:
+        sys.exit(1)
+
+
+def cmd_version(args, reg):
+    _out({"agentauth": __version__})
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="agentauth", description="Identities for autonomous AI agents")
-    p.add_argument("--registry", default=DEFAULT_REGISTRY, help="registry URL (env AGENTAUTH_REGISTRY)")
+    p.add_argument("--registry", default=DEFAULT_REGISTRY,
+                   help="registry URL, or several comma-separated URLs to cross-check (env AGENTAUTH_REGISTRY)")
     p.add_argument("--dir", default=DEFAULT_DIR, help="key directory (env AGENTAUTH_HOME)")
     p.add_argument("--recovery-dir", default=None, help="where recovery (next) keys live; defaults to --dir")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -233,22 +320,51 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("serve", help="run the registry")
     s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8000)
-    s.add_argument("--db", default="agentauth.db")
+    s.add_argument("--db", default=None, help="database URL or SQLite path (env AGENTAUTH_DATABASE_URL; default agentauth.db)")
     s.add_argument("--audience", action="append", help="extra host[:port] the registry answers to")
+    s.add_argument("--workers", type=int, default=1, help="worker processes (use Redis for >1; see docs/operations.md)")
     s.set_defaults(fn=cmd_serve)
+
+    s = sub.add_parser("db", help="registry database maintenance")
+    s.add_argument("action", choices=["migrate", "status", "verify"],
+                   help="migrate: apply schema migrations; status: show versions; verify: replay every log")
+    s.add_argument("--database-url", default=None, help="defaults to AGENTAUTH_DATABASE_URL / AGENTAUTH_DB")
+    s.set_defaults(fn=cmd_db)
+
+    s = sub.add_parser("sync", help="copy a DID's events to every registry in --registry that lacks them")
+    s.add_argument("did"); s.set_defaults(fn=cmd_sync)
+
+    s = sub.add_parser("audit", help="verify a service's audit log")
+    s.add_argument("path", help="SQLite file written by agentauth.audit.AuditLog")
+    s.add_argument("--key", help="multikey every entry must be signed with")
+    s.add_argument("--head", help="exported head SEQ:DIGEST that must still be present")
+    s.set_defaults(fn=cmd_audit)
+
+    s = sub.add_parser("version", help="print the version"); s.set_defaults(fn=cmd_version)
     return p
+
+
+def make_registry(spec: str):
+    urls = [u.strip() for u in spec.split(",") if u.strip()]
+    if len(urls) == 1:
+        return RegistryClient(urls[0])
+    return RegistryPool([RegistryClient(u) for u in urls])
 
 
 def main(argv=None) -> None:
     args = build_parser().parse_args(argv)
-    reg = RegistryClient(args.registry)
+    reg = make_registry(args.registry)
     try:
         args.fn(args, reg)
     except RegistryError as e:
         sys.exit(f"registry error {e.status}: {e.detail}")
     except (GrantError, LimitError) as e:
         sys.exit(f"grant error: {e}")
-    except (ValueError, RuntimeError, FileNotFoundError) as e:
+    except EquivocationError as e:
+        sys.exit(f"registry equivocation detected: {e}")
+    except httpx.TransportError as e:
+        sys.exit(f"error: cannot reach the registry ({e})")
+    except (ValueError, RuntimeError, OSError) as e:
         sys.exit(f"error: {e}")
 
 
