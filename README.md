@@ -39,6 +39,20 @@ did:agent:QmfJZCnucexGhSZqdsAcKnFcv4RxyhPFMUiGjQmDRiMxux
 | Stolen key = full takeover | **Pre-rotation**: the next key is committed in advance, so the current key alone can't rotate the identity |
 | No link between an agent and who's responsible for it | Optional **controller** (a human or org DID) countersigns the agent's creation and holds a kill switch |
 
+## Who it's for
+
+- **Teams building AI agents** that call internal or third-party APIs and want something safer than a shared API key: a per-agent identity, no secrets on the wire, and safe key rotation.
+- **Service and API owners** who accept calls from agents and need to know *which* agent is calling, *who* authorized it, and *what* it may do, with budgets, rate limits and resource limits enforced for them.
+- **MCP server authors** who want to require a grant per tool (see [MCP servers](docs/integration-guide.md#8-mcp-servers)).
+- **Platform and security teams** who need to answer "which agents can spend money, and on whose authority?", keep an audit trail, and switch off one agent, or everything it delegated, instantly.
+- **Developers of agent frameworks and tooling** who want a verifiable identity and delegation layer instead of inventing one. The [protocol spec](docs/protocol.md) is written so it can be implemented in other languages.
+
+**What you need:** Python 3.10 or newer. Running your own registry is optional for development (`agentauth serve`); a production deployment adds PostgreSQL and Redis (see [operations](docs/operations.md)).
+
+**Licensing:** AgentAuth is open source under the [Apache License 2.0](LICENSE), so individuals, companies and open-source projects can use, modify and redistribute it, including commercially, under that license's terms.
+
+**Not a fit (yet):** protecting high-value assets before an independent security audit, replacing human login (people still sign in as they do today), or acting as a general policy engine. See [Why AgentAuth](docs/why.md#what-it-isnt) and the [threat model](docs/threat-model.md).
+
 ## Concepts
 
 **Key event log (KEL).** An identity is an append-only, hash-chained list of signed events:
