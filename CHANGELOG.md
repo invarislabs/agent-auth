@@ -97,6 +97,8 @@ An internal review of the protocol core, registry and SDK (**not an independent 
 - Nonces must be 16–128 characters; `ts` must be plain digits; grants may not be issued to their own issuer or repeat a link.
 - `AuthorizedAgent.charged` accumulates over several `enforce()` calls.
 - Python 3.14 added to supported versions.
+- Minimum dependency versions raised: `cryptography>=50.0.2`, and for the extras `uvicorn>=0.54.0`, `redis>=8.1.0`, `psycopg>=3.3.6` and `psycopg-pool>=3.3.3` (the versions the lock already pins, tested by the minimum-versions CI job).
+- TypeScript verifier builds with TypeScript 7 (`types: ["node"]` is now explicit in `ts/tsconfig.json`, since TypeScript 6+ no longer includes `@types/*` packages automatically).
 
 ## [0.3.0]
 
