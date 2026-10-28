@@ -364,7 +364,10 @@ Dockerfile, docker-compose.yml, .env.example
 - Sub-agents exceeding their parent's resources, budget, rate or use count, even in aggregate and across replicas
 - Path traversal in resource names
 - Losing a recovery key to a crash mid-rotation
-- Registry abuse: oversized bodies, crafted JSON, request floods
+- Registry abuse: oversized or slow bodies, crafted JSON, request floods, spoofed forwarding headers
+- A log server faking a "controller deactivation" (controller signatures are bound to the controller's own log)
+- Planted key files (a pending-rotation key nobody committed to is never adopted; encrypted files are bound to their identity and role)
+- Two implementations reading one token differently (grant payloads must be canonical; Python and TypeScript share test vectors)
 
 **Not yet covered:**
 - **No independent audit.** An internal review is done ([findings](docs/security-audit-2026-10.md)), but it isn't a substitute. Don't protect high-value assets with it until there has been an external audit.
@@ -377,7 +380,7 @@ Dockerfile, docker-compose.yml, .env.example
 
 ## Roadmap
 
-Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3), production hardening (v0.4). Unreleased: an internal security review with all findings fixed, and a TypeScript verifier sharing test vectors with Python. Next: split-view detection via gossip or a transparency log, KMS/HSM signer adapters and threshold recovery, TypeScript signing and issuing, Kubernetes packaging, and an independent security review. See the full [roadmap](docs/roadmap.md).
+Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3), and in v0.4 production hardening, an internal security review with every finding fixed, and a TypeScript verifier that shares test vectors with Python. Next: split-view detection via gossip or a transparency log, KMS/HSM signer adapters and threshold recovery, TypeScript signing and issuing, Kubernetes packaging, and an independent security review. See the full [roadmap](docs/roadmap.md).
 
 ## License
 

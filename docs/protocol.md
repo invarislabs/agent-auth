@@ -1,8 +1,8 @@
 # Protocol specification (v0.4)
 
-This document describes AgentAuth's wire formats and verification rules precisely enough to write a compatible client or verifier in another language. The Python package is the reference implementation. If this document and the code disagree, the code wins, and the disagreement should be fixed here.
+This document describes AgentAuth's wire formats and verification rules precisely enough to write a compatible client or verifier in another language. The Python package is the reference implementation. If this document and the code disagree, the code wins, and the disagreement should be fixed here. The shared [test vectors](../test-vectors/README.md) turn these rules into concrete cases. Any implementation, including the [TypeScript verifier](../ts/README.md), must pass them.
 
-**Compatibility.** The wire formats and version strings are unchanged since v0.3 (`agentauth/1`, `agentauth-request/1`, `agentauth-grant/1`, `agentauth-revocation/1`), and everything a v0.3 client produces is still accepted. v0.4 makes **verification stricter**: inputs that v0.3 accepted only by accident (duplicate header parameters, unknown fields, non-canonical encodings, out-of-range numbers) are now rejected. [§9](#9-changes-in-v04) lists every change.
+**Compatibility.** The wire formats and version strings are unchanged since v0.3 (`agentauth/1`, `agentauth-request/1`, `agentauth-grant/1`, `agentauth-revocation/1`), and everything a v0.3 client produces is still accepted. v0.4 makes **verification stricter**: inputs that v0.3 accepted only by accident (duplicate header parameters, unknown fields, non-canonical encodings, out-of-range numbers) are now rejected. The October 2026 security review tightened a few more rules: canonical grant payloads, ASCII-only audiences and scopes, no stateful limits on audience `"*"`, and controller key binding. [§9](#9-changes-in-v04) lists every change.
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
@@ -53,7 +53,8 @@ Everything that gets signed or hashed is serialized as canonical JSON:
 - UTF-8, with non-ASCII characters emitted as-is (not `\u` escaped);
 - **floating-point numbers MUST NOT appear**. Only strings, integers, booleans, `null`, arrays and objects are allowed.
 - strings MUST be valid Unicode (no lone surrogates).
-- when parsing JSON that will be verified, implementations SHOULD reject duplicate object keys, `NaN` and `Infinity` (the reference registry does).
+- when parsing JSON that will be verified, implementations SHOULD reject duplicate object keys, `NaN` and `Infinity` (the reference registry does). For grant payloads this is a MUST (§4.2).
+- implementations MUST keep each number's lexical type when parsing: `1.0` is a float (and so rejected), not the integer 1, and an integer beyond ±(2⁵³−1) must not be silently rounded. JavaScript's `JSON.parse` does both, so it can't be used on data that gets verified.
 
 For the payloads AgentAuth signs (ASCII object keys, integers within ±2⁵³), this produces the same bytes as RFC 8785 (JCS). Implementations SHOULD NOT rely on equivalence outside that range: JCS sorts keys by UTF-16 code units and treats all numbers as IEEE doubles.
 
@@ -209,7 +210,7 @@ Parameter values MUST NOT contain `"`. Parameters are separated by `,` (optional
 - `kid` is `did + "#key-" + n` for that same `did`, with `n` a decimal integer without leading zeros.
 - `ts` is a decimal integer of 1–15 ASCII digits (no sign, spaces, `_` or decimal point).
 - `nonce` is 16–128 characters from `A–Z a–z 0–9 - _ . ~ + / =`. It SHOULD have at least 128 bits of entropy (the reference client uses 16 random bytes, base64url-encoded: 22 characters).
-- `aud` is 1–255 characters with no whitespace, `,` or `"`.
+- `aud` is 1–255 printable ASCII characters (`0x21`–`0x7E`) other than `,` and `"`. It's compared with the verifier's audiences ASCII-case-insensitively.
 
 ### 3.2 Signing string
 
@@ -411,9 +412,9 @@ All bodies are JSON. Errors are `{"detail": "<message>"}`. Every response carrie
 
 | Method & path | Body / query | Success | Errors |
 |---|---|---|---|
-| `POST /v1/identities` | Inception event (§2.2) | `201` resolution result | `400` invalid, or controller not active; `401` registration token required; `409` already registered |
+| `POST /v1/identities` | Inception event (§2.2) | `201` resolution result | `400` invalid, or controller not active with the countersigning key (re-checked atomically with the insert); `401` registration token required; `409` already registered |
 | `GET /v1/identities` | `?after=<did>&limit=<1-1000>` | `200` `{"identities": [{"did","active"}], "next": <did or null>}` | `400` |
-| `POST /v1/identities/{did}/events` | Rotation or deactivation event | `200` resolution result | `400` invalid; `404` unknown DID; `409` concurrent update |
+| `POST /v1/identities/{did}/events` | Rotation or deactivation event | `200` resolution result | `400` invalid, or the identity already has 10,000 events; `404` unknown DID; `409` concurrent update |
 | `GET /v1/identities/{did}` | — | `200` resolution result (`Cache-Control: max-age=30` by default) | `404` |
 | `GET /v1/identities/{did}/log` | — | `200` `{"did", "events": [ … ]}` | `404` |
 | `GET /v1/identities/{did}/agents` | `?after=<did>&limit=<1-1000>` | `200` `{"controller", "agents": [{"did","active"}], "next"}` | `400` |
@@ -426,14 +427,16 @@ All bodies are JSON. Errors are `{"detail": "<message>"}`. Every response carrie
 | `GET /metrics` | — | `200` Prometheus text format (can be disabled) | — |
 
 - A path `{did}` that isn't a `did:agent:` identifier answers `404`.
-- Request bodies larger than the configured limit (default 16 KiB) are rejected with `413` before they are read; events larger than 16 KiB always are.
-- `/v1/*` routes are rate-limited per client address (defaults: 60 writes and 1200 reads per minute; `/v1/revocations/check` counts as a read). Over the limit: `429` with `Retry-After`.
+- Request bodies larger than the configured limit (default 16 KiB) are rejected with `413` before they are read; events larger than 16 KiB always are. A body that takes longer than 10 s to arrive is rejected with `408`.
+- `/v1/*` routes are rate-limited per client address (defaults: 60 writes and 1200 reads per minute; `/v1/revocations/check` counts as a read). IPv6 clients are counted per /64. Over the limit: `429` with `Retry-After`.
+- A temporarily unavailable database (lock or pool timeout, lost connection) answers `503` with `Retry-After`. Retry it.
+- The registry serves no interactive docs or OpenAPI schema (`/docs`, `/redoc` and `/openapi.json` answer `404`); this section is the API reference.
 - When the operator sets a registration token, `POST /v1/identities` requires the header `X-AgentAuth-Registration-Token`. Key events and revocations never need it: they are authorized by the identity's own signatures.
 - `proofs` was added in v0.4. Clients MUST tolerate its absence (older registries).
 
 ### 7.1 Several registries
 
-Nothing in the protocol ties an identity to one registry. A client MAY submit events to several independent registries and, when resolving, fetch the log from each. Logs from honest registries are prefixes of one another (one may lag); a client MUST treat two logs that differ at the same `seq` as **equivocation** and fail closed, and SHOULD use the longest log otherwise. A client SHOULD also remember the newest `(seq, digest)` it has verified for each DID and reject any later log that is shorter or differs at that position. The reference implementation provides both (`RegistryPool`, `KelPins`).
+Nothing in the protocol ties an identity to one registry. A client MAY submit events to several independent registries and, when resolving, fetch the log from each. A client MUST verify each registry's log on its own (including controller key binding, §2.2) and ignore any that fails, so a registry serving an invalid but longer log can't win. Logs from honest registries are prefixes of one another (one may lag); a client MUST treat two valid logs that differ at the same `seq` as **equivocation** and fail closed, and SHOULD use the longest log otherwise. A client SHOULD also remember the newest `(seq, digest)` it has verified for each DID and reject any later log that is shorter or differs at that position. The reference implementation provides both (`RegistryPool`, `KelPins`).
 
 ---
 

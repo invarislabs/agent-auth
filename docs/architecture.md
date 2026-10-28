@@ -41,6 +41,8 @@ flowchart LR
 | **Audit log** | `agentauth/audit.py` | Hash-chained, optionally signed log of authorization decisions |
 | **Registry** | `agentauth/server.py`, `agentauth/store.py`, `agentauth/config.py`, `agentauth/ratelimit.py`, `agentauth/observability.py` | HTTP service storing KELs and revocations (SQLite or PostgreSQL, versioned schema), with env configuration, body and rate limits, health/readiness, Prometheus metrics, JSON logs |
 | **CLI** | `agentauth/cli.py` | `agentauth` command wrapping the SDK, the registry and database maintenance |
+| **TypeScript verifier** | `ts/` | A verification-only port for Node, Deno, Bun, browsers and edge runtimes: strict JSON, key event logs, `AgentSig`, grant chains, limits, revocation proofs, and a registry client with controller binding and pins |
+| **Test vectors** | `test-vectors/`, `scripts/generate_test_vectors.py` | Deterministic cases generated from the Python reference. Both implementations must pass them, so they accept and reject exactly the same inputs. |
 
 ## The registry is a witness, not an authority
 
@@ -49,6 +51,7 @@ The registry stores each identity's key event log and serves it back. It **valid
 - A DID is the digest of its own signed inception event, so the registry can't create or change one.
 - Every later event is signed and hash-chained to the one before it.
 - `RegistryKeyResolver` (used by services) downloads the **full log** and replays it locally by default, instead of trusting the registry's summary.
+- A controller's signature (on an inception or a deactivation) only counts if the key appears in the controller's own verified log, so whoever serves the log can't slip in a "controller deactivation" signed by some other key.
 
 What the registry *can* do is withhold events or show different clients different logs. Relying services defend against that in two ways: they **pin** the newest log they've verified for each DID and reject anything shorter or conflicting later, and they can **cross-check several registries** (`RegistryPool`), taking the longest log that all of them agree on. See the [threat model](threat-model.md#a-malicious-registry).
 
@@ -97,6 +100,7 @@ sequenceDiagram
 | **402** | Budget exhausted |
 | **429** | Rate limit reached (the message says when to retry) |
 | **400** | Malformed input, or a requested resource containing `..` |
+| **408** | The request body didn't arrive within 10 s (registry) |
 | **413** | Request body too large |
 | **503** | A dependency failed (registry, Redis, policy store) or equivocation was detected. AgentAuth fails closed: nothing is allowed that couldn't be fully checked. |
 
