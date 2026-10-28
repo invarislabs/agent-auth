@@ -161,3 +161,15 @@ def test_memory_rate_limiter_is_bounded():
     for i in range(100):
         rl.hit(f"k{i}", 5, 60)
     assert len(rl._windows) <= 10
+
+
+def test_revoke_grant_id_starting_with_dash(run, monkeypatch):
+    """Grant ids are base64url, so older ones can start with '-'; `--` makes them usable."""
+    import agentauth.grants as grants
+
+    run("init", "issuer")
+    run("init", "holder")
+    monkeypatch.setattr(grants, "new_grant_id", lambda: "-dash-leading-id-0001")
+    run("grant", "issuer", "holder", "--scope", "x.y", "--aud", "svc", "-o", str(run.tmp / "g.grant"))
+    assert GrantChain.decode((run.tmp / "g.grant").read_text().strip()).leaf.id == "-dash-leading-id-0001"
+    assert run("revoke", "issuer", "--", "-dash-leading-id-0001")["new"] is True

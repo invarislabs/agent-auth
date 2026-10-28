@@ -315,8 +315,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("inspect", help="decode a grant chain (file or token)")
     s.add_argument("chain"); s.set_defaults(fn=cmd_inspect)
 
-    s = sub.add_parser("revoke", help="revoke a grant you issued (cascades to its delegations)")
-    s.add_argument("issuer"); s.add_argument("grant_id"); s.set_defaults(fn=cmd_revoke)
+    s = sub.add_parser("revoke", help="revoke a grant you issued (cascades to its delegations)",
+                       epilog="A grant id that starts with '-' must follow '--': agentauth revoke ISSUER -- -abc123")
+    s.add_argument("issuer")
+    s.add_argument("grant_id", help="id of the grant to revoke (see `agentauth inspect`)")
+    s.set_defaults(fn=cmd_revoke)
 
     s = sub.add_parser("serve", help="run the registry")
     s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8000)
