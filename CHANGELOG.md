@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/) (pre-1.0: minor releases may change formats, and will say so).
 
-## [0.4.0] — unreleased
+## [0.4.0] — 2026-10-28
 
 Production hardening. **Wire formats and version strings are unchanged**; everything a v0.3 client produces is still accepted. Verification is stricter: malformed input that v0.3 accepted by accident is now rejected (see [protocol §9](docs/protocol.md#9-changes-in-v04)).
 
@@ -90,7 +90,8 @@ An internal review of the protocol core, registry and SDK (**not an independent 
 - ~200 new tests: adversarial/fuzz, concurrency (threads and processes), Redis, PostgreSQL, CLI, MCP and end-to-end with real server processes.
 
 ### Changed
-
+- **Published on PyPI as `invaris-agentauth`.** The name `agentauth` on PyPI belongs to an unrelated project. The import name (`import agentauth`) and the `agentauth` command are unchanged. Install with `pip install invaris-agentauth`, plus extras as before (`invaris-agentauth[server,redis,postgres]`).
+- **Release automation.** Publishing a GitHub release builds and checks the package, publishes it to PyPI through trusted publishing (no stored token), and pushes the registry image to `ghcr.io/invarislabs/agent-auth` tagged with the version and `latest`.
 - `agentauth serve` reads `AGENTAUTH_*` settings, accepts `--workers`, and refuses `--workers > 1` without Redis.
 - Registry rate limits are **on by default** (60 writes and 1200 reads per minute per address).
 - New key files use scrypt N=2¹⁷ and record their KDF parameters (v0.3 files still load).
