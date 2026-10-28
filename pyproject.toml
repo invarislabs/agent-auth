@@ -3,7 +3,7 @@ requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentauth"
+name = "invaris-agentauth"
 version = "0.4.0"
 description = "Self-certifying, rotatable identities for autonomous AI agents"
 readme = "README.md"
@@ -28,9 +28,9 @@ dependencies = ["cryptography>=50.0.2", "httpx>=0.28.1"]
 server = ["fastapi>=0.162.0", "uvicorn>=0.54.0"]
 redis = ["redis>=8.1.0"]
 postgres = ["psycopg[binary]>=3.3.6", "psycopg-pool>=3.3.3"]
-all = ["agentauth[server,redis,postgres]"]
+all = ["invaris-agentauth[server,redis,postgres]"]
 dev = [
-    "agentauth[all]",
+    "invaris-agentauth[all]",
     "pytest>=9.1.1",
     "pytest-cov>=5",
     "httpx2>=2.13",  # used by starlette.testclient
@@ -40,8 +40,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://www.invarislabs.com/"
+Homepage = "https://github.com/invarislabs/agent-auth"
+Website = "https://www.invarislabs.com/"
 Repository = "https://github.com/invarislabs/agent-auth"
+Issues = "https://github.com/invarislabs/agent-auth/issues"
 Documentation = "https://github.com/invarislabs/agent-auth/tree/main/docs"
 Changelog = "https://github.com/invarislabs/agent-auth/blob/main/CHANGELOG.md"
 
