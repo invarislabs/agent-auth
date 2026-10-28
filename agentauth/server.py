@@ -14,8 +14,10 @@ Configuration comes from ``AGENTAUTH_*`` environment variables (see
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import hmac
+import ipaddress
 import json
 import logging
 import re
@@ -26,6 +28,7 @@ from typing import Any, Optional
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
@@ -40,6 +43,10 @@ from .store import Conflict, SchemaError, open_store
 
 MAX_EVENT_BYTES = 16 * 1024
 MAX_CHECK_PAIRS = 32
+MAX_LOG_EVENTS = 10_000  # events per identity; keeps GET .../log bounded
+BODY_TIMEOUT = 10.0  # seconds to receive a whole request body (slow-body protection)
+RATE_LIMIT_TIMEOUT = 0.25  # seconds; a slow rate-limit backend lets the request through
+_METRIC_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 REGISTRATION_TOKEN_HEADER = "X-AgentAuth-Registration-Token"  # noqa: S105  # nosec B105
 _REQUEST_ID_RE = re.compile(r"\A[A-Za-z0-9_\-.]{1,64}\Z")
 _GRANT_ID_RE = re.compile(r"\A[A-Za-z0-9_\-.:]{1,128}\Z")  # same rule as grants._ID_RE
@@ -70,11 +77,22 @@ def _strict_json(raw: bytes) -> Any:
     return json.loads(raw, object_pairs_hook=no_dupes, parse_constant=no_constants)
 
 
-class _BodyLimit:
-    """ASGI middleware: refuse request bodies larger than `limit` bytes, before the app reads them."""
+def _metric_method(method: str) -> str:
+    """Bound the `method` metric label: arbitrary client-chosen methods would grow the series forever."""
+    return method if method in _METRIC_METHODS else "OTHER"
 
-    def __init__(self, app, limit: int):
-        self.app, self.limit = app, limit
+
+class _BodyLimit:
+    """ASGI middleware: refuse request bodies larger than `limit` bytes, or that take longer
+    than `timeout` seconds to arrive, before the app reads them."""
+
+    def __init__(self, app, limit: int, timeout: float = BODY_TIMEOUT, on_reject=None):
+        self.app, self.limit, self.timeout, self.on_reject = app, limit, timeout, on_reject
+
+    async def _refuse(self, scope, send, status: int, detail: str) -> None:
+        if self.on_reject is not None:
+            self.on_reject(scope.get("method", ""), status)
+        await _send_json(send, status, {"detail": detail})
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -86,16 +104,21 @@ class _BodyLimit:
                 except ValueError:
                     too_big = True
                 if too_big:
-                    return await _send_json(send, 413, {"detail": "request body too large"})
+                    return await self._refuse(scope, send, 413, "request body too large")
         chunks, size, more = [], 0, True
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self.timeout
         while more:
-            msg = await receive()
+            try:
+                msg = await asyncio.wait_for(receive(), timeout=max(0.0, deadline - loop.time()))
+            except asyncio.TimeoutError:
+                return await self._refuse(scope, send, 408, "request body not received in time")
             if msg["type"] == "http.disconnect":
                 return
             body = msg.get("body", b"")
             size += len(body)
             if size > self.limit:
-                return await _send_json(send, 413, {"detail": "request body too large"})
+                return await self._refuse(scope, send, 413, "request body too large")
             chunks.append(body)
             more = msg.get("more_body", False)
         buffered = b"".join(chunks)
@@ -137,6 +160,9 @@ def create_app(
     if audiences is not None:
         settings.audiences = {a.lower() for a in audiences}
     settings.validate()
+    if not settings.registration_token:
+        log.warning("open registration: anyone who can reach this registry can register identities "
+                    "(set AGENTAUTH_REGISTRATION_TOKEN to require a token)")
 
     store = store or open_store(settings.database_url, auto_migrate=settings.auto_migrate)
 
@@ -170,7 +196,10 @@ def create_app(
         log.info("registry stopping")
         store.close()
 
-    app = FastAPI(title="AgentAuth Registry", version=__version__, lifespan=lifespan)
+    # No interactive docs or OpenAPI schema: they are an unauthenticated map of the API
+    # and are not needed to operate it (the protocol is specified in docs/protocol.md).
+    app = FastAPI(title="AgentAuth Registry", version=__version__, lifespan=lifespan,
+                  docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store
     app.state.settings = settings
     app.state.metrics = metrics
@@ -233,11 +262,50 @@ def create_app(
     # -- middleware: request id, access log, metrics, rate limits ---------- #
 
     def client_ip(request: Request) -> str:
+        """The client address used for rate limiting.
+
+        With N trusted proxies, the client is the N-th address from the right of
+        X-Forwarded-For (all header lines joined, as RFC 7230 requires). Anything
+        that isn't a valid IP falls back to the socket peer, so a client can't
+        invent arbitrary rate-limit keys.
+        """
+        peer = request.client.host if request.client else "unknown"
         if settings.trusted_proxy_hops:
-            xff = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+            xff = [p.strip() for line in request.headers.getlist("x-forwarded-for") for p in line.split(",")]
+            xff = [p for p in xff if p]
             if len(xff) >= settings.trusted_proxy_hops:
-                return xff[-settings.trusted_proxy_hops]
-        return request.client.host if request.client else "unknown"
+                candidate = xff[-settings.trusted_proxy_hops]
+                # Some proxies append "ip:port" or "[ipv6]:port".
+                if candidate.startswith("[") and "]" in candidate:
+                    candidate = candidate[1:candidate.index("]")]
+                elif candidate.count(":") == 1:
+                    candidate = candidate.split(":", 1)[0]
+                try:
+                    ipaddress.ip_address(candidate)
+                    return candidate
+                except ValueError:
+                    pass
+        return peer
+
+    def rate_key(ip: str) -> str:
+        """IPv6 clients typically control a whole /64, so count them per /64, not per address."""
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return ip
+        if isinstance(addr, ipaddress.IPv6Address):
+            if addr.ipv4_mapped is not None:
+                return str(addr.ipv4_mapped)
+            return str(ipaddress.ip_network(f"{addr}/64", strict=False))
+        return str(addr)
+
+    async def rate_hit(key: str, rule: tuple) -> tuple:
+        # The limiter may block on Redis; never run it on the event loop, and never wait long.
+        try:
+            return await asyncio.wait_for(run_in_threadpool(limiter.hit, key, *rule), timeout=RATE_LIMIT_TIMEOUT)
+        except asyncio.TimeoutError:
+            log.error("rate limiter did not answer within %.2fs, allowing request", RATE_LIMIT_TIMEOUT)
+            return True, 0
 
     @app.middleware("http")
     async def observe(request: Request, call_next):
@@ -252,7 +320,7 @@ def create_app(
             write = request.method in ("POST", "PUT", "PATCH", "DELETE") and path != "/v1/revocations/check"
             rule = settings.rate_limit_writes if write else settings.rate_limit_reads
             if rule:
-                ok, retry = limiter.hit(f"{'w' if write else 'r'}:{ip}", *rule)
+                ok, retry = await rate_hit(f"{'w' if write else 'r'}:{rate_key(ip)}", rule)
                 if not ok:
                     m_ratelimited.inc("write" if write else "read")
                     resp = JSONResponse({"detail": "rate limit exceeded"}, status_code=429,
@@ -262,12 +330,17 @@ def create_app(
                     return resp
         try:
             response = await call_next(request)
-        except Exception:
-            log.exception("unhandled error", extra={"request_id": rid, "path": path})
-            response = JSONResponse({"detail": "internal error", "request_id": rid}, status_code=500)
+        except Exception as e:
+            if _is_unavailable(e):
+                log.error("storage unavailable: %s", type(e).__name__, extra={"request_id": rid, "path": path})
+                response = JSONResponse({"detail": "storage temporarily unavailable", "request_id": rid},
+                                        status_code=503, headers={"Retry-After": "2"})
+            else:
+                log.exception("unhandled error", extra={"request_id": rid, "path": path})
+                response = JSONResponse({"detail": "internal error", "request_id": rid}, status_code=500)
         elapsed = time.perf_counter() - start
         route = getattr(request.scope.get("route"), "path", "unmatched")
-        m_requests.inc(request.method, route, str(response.status_code))
+        m_requests.inc(_metric_method(request.method), route, str(response.status_code))
         m_latency.observe(elapsed, route)
         response.headers["X-Request-ID"] = rid
         if route not in ("/healthz", "/readyz", "/metrics"):
@@ -344,16 +417,29 @@ def create_app(
                 m_events.inc("inception", "unauthorized")
                 raise HTTPException(401, "registration requires a valid registration token")
         event = await read_event(request)
+        return await run_in_threadpool(_register, event)
+
+    def _register(event: dict):
         try:
             state = verify_inception(event, controller_is_current)
         except InvalidEvent as e:
             m_events.inc("inception", "invalid")
             raise HTTPException(400, str(e)) from None
-        if state.controller and current_key(state.controller) is None:
-            m_events.inc("inception", "invalid")
-            raise HTTPException(400, "controller is not a registered, active identity")
+        proof_key = (event.get("controller_proof") or {}).get("key")
+
+        def controller_still_current(state_of) -> None:
+            # Re-checked under the controller's write lock: a rotation or deactivation of the
+            # controller can't slip in between this check and the insert.
+            if state.controller and not _key_is_current(state_of(state.controller), proof_key):
+                raise _Precondition("controller is not a registered, active identity with that key")
+
         try:
-            store.append(event, state, expected_prev_seq=None)
+            store.append(event, state, expected_prev_seq=None,
+                         lock_also=(state.controller,) if state.controller else (),
+                         precondition=controller_still_current)
+        except _Precondition as e:
+            m_events.inc("inception", "invalid")
+            raise HTTPException(400, str(e)) from None
         except Conflict:
             m_events.inc("inception", "conflict")
             raise HTTPException(409, "identity already registered") from None
@@ -372,18 +458,36 @@ def create_app(
     async def append_event(did: str, request: Request):
         check_did(did)
         event = await read_event(request)
+        return await run_in_threadpool(_append_event, did, event)
+
+    def _append_event(did: str, event: dict):
         etype = event["body"].get("type") if isinstance(event["body"].get("type"), str) else "unknown"
         etype = etype if etype in ("rotation", "deactivation") else "unknown"
         state = store.get_state(did)
         if state is None:
             raise HTTPException(404, "unknown identity")
+        if state.seq + 1 >= MAX_LOG_EVENTS:
+            m_events.inc(etype, "invalid")
+            raise HTTPException(400, f"identity has reached the maximum of {MAX_LOG_EVENTS} events")
         try:
             new_state = apply_event(state, event, controller_is_current)
         except InvalidEvent as e:
             m_events.inc(etype, "invalid")
             raise HTTPException(400, str(e)) from None
+        signer = event.get("signer")
+        controller_signed = new_state.controller is not None and signer == new_state.controller
+
+        def controller_still_current(state_of) -> None:
+            if controller_signed and not _key_is_current(state_of(signer), event["body"]["key"]):
+                raise _Precondition("deactivation not signed with the controller's current key")
+
         try:
-            store.append(event, new_state, expected_prev_seq=state.seq)
+            store.append(event, new_state, expected_prev_seq=state.seq,
+                         lock_also=(signer,) if controller_signed else (),
+                         precondition=controller_still_current)
+        except _Precondition as e:
+            m_events.inc(etype, "invalid")
+            raise HTTPException(400, str(e)) from None
         except Conflict:
             m_events.inc(etype, "conflict")
             raise HTTPException(409, "concurrent update; fetch the log and retry") from None
@@ -423,6 +527,9 @@ def create_app(
     async def revoke_grant(request: Request):
         """Record that an issuer revoked one of its grants (and so every delegation beneath it)."""
         event = await read_event(request)
+        return await run_in_threadpool(_revoke_grant, event)
+
+    def _revoke_grant(event: dict):
         iss = event["body"].get("iss")
         found = current_key(iss) if is_agent_did(iss) else None
         if found is None:
@@ -451,7 +558,7 @@ def create_app(
                        and isinstance(p[1], str) and _GRANT_ID_RE.match(p[1]) for p in pairs)
         ):
             raise HTTPException(400, f'expected {{"grants": [[issuer, grant_id], ...]}} (max {MAX_CHECK_PAIRS})')
-        found = store.revocation_events([(a, b) for a, b in pairs])
+        found = await run_in_threadpool(store.revocation_events, [(a, b) for a, b in pairs])
         revoked = [[a, b] for a, b in pairs if (a, b) in found]
         return {"revoked": revoked, "proofs": [found[(a, b)] for a, b in revoked]}
 
@@ -460,8 +567,30 @@ def create_app(
         return {"did": agent.did, "kid": agent.kid}
 
     # Outermost layer: oversized bodies are refused before anything reads them.
-    app.add_middleware(_BodyLimit, limit=settings.max_body_bytes)
+    app.add_middleware(_BodyLimit, limit=settings.max_body_bytes,
+                       on_reject=lambda method, status: m_requests.inc(_metric_method(method), "unmatched",
+                                                                       str(status)))
     return app
+
+
+def _key_is_current(st, key) -> bool:
+    return st is not None and st.active and bool(st.key) and st.key == key
+
+
+class _Precondition(Exception):
+    """A check re-run inside the write transaction failed."""
+
+
+def _is_unavailable(e: BaseException) -> bool:
+    """Database lock/pool timeouts and lost connections: transient, so answer 503 + Retry-After, not 500."""
+    import sqlite3
+
+    if isinstance(e, sqlite3.OperationalError):
+        return any(w in str(e).lower() for w in ("locked", "busy", "unable to open", "disk i/o"))
+    mod = type(e).__module__ or ""
+    if mod.startswith(("psycopg_pool", "psycopg")):
+        return type(e).__name__ in ("PoolTimeout", "TooManyRequests", "OperationalError", "PoolClosed")
+    return False
 
 
 def get_app() -> FastAPI:  # for `uvicorn agentauth.server:get_app --factory`
