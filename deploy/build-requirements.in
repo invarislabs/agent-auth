@@ -1,0 +1,2 @@
+# Build backend for `pip install --no-build-isolation .` in the Dockerfile (matches [build-system] in pyproject.toml).
+setuptools>=84.2.1
