@@ -118,12 +118,17 @@ def canonical_json(obj: Any) -> bytes:
             for v in o:
                 _check(v)
 
-    _check(obj)
+    try:
+        _check(obj)
+    except RecursionError:
+        raise TypeError("payload is nested too deeply") from None
     try:
         return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     except UnicodeEncodeError:
         # e.g. lone surrogates, which have no UTF-8 encoding
         raise TypeError("strings in signed payloads must be valid Unicode") from None
+    except RecursionError:
+        raise TypeError("payload is nested too deeply") from None
 
 
 def sha256(data: bytes) -> bytes:

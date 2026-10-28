@@ -60,7 +60,8 @@ def _did_from_inception(body: dict) -> str:
 
 # did:agent:<base58btc of a 34-byte sha2-256 multihash> is 45-46 characters after the prefix.
 _DID_RE = re.compile(r"\Adid:agent:[1-9A-HJ-NP-Za-km-z]{40,60}\Z")
-_TS_RE = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+# ASCII digits only: \d would also accept other scripts' digits, which other implementations reject.
+_TS_RE = re.compile(r"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\Z")
 
 # Exact field sets. Unknown fields are rejected so that two implementations can
 # never disagree about what an event means.
@@ -112,6 +113,8 @@ def make_inception(
     }
     body["did"] = _did_from_inception(body)
     event = _signed(body, body["did"], current)
+    if next_key.public_multikey == current.public_multikey:
+        raise ValueError("the next key must differ from the current key, or pre-rotation protects nothing")
     if controller:
         if controller_key is None:
             raise ValueError("controller_key is required to countersign when a controller is set")
@@ -230,6 +233,8 @@ def _is_int(v: Any) -> bool:
 
 def _check_envelope(event: Any) -> dict:
     _require(isinstance(event, dict), "event must be an object")
+    _require(_shape_ok(event, MAX_EVENT_DEPTH),
+             f"event nests deeper than {MAX_EVENT_DEPTH} levels or holds an integer beyond 2**53-1")
     _require(not (set(event) - _ENVELOPE_FIELDS), "event envelope has unknown fields")
     _require(isinstance(event.get("signer"), str), "signer must be a string")
     _require(isinstance(event.get("sig"), str), "sig must be a string")
@@ -251,6 +256,27 @@ def _check_common(body: dict, fields: set) -> None:
 
 
 MAX_META_DEPTH = 16
+# A whole event envelope never nests deeper than this (meta's 16 levels sit at depth 3).
+MAX_EVENT_DEPTH = 24
+MAX_SAFE_INT = 9007199254740991
+
+
+def _shape_ok(obj: Any, limit: int) -> bool:
+    """Bounded nesting and only integers every JSON implementation represents exactly.
+
+    Checked iteratively before anything recursive (canonicalization) touches the
+    event, so a deeply nested payload is rejected instead of exhausting the stack.
+    """
+    stack = [(obj, 1)]
+    while stack:
+        o, d = stack.pop()
+        if isinstance(o, (dict, list)):
+            if d > limit:
+                return False
+            stack.extend((v, d + 1) for v in (o.values() if isinstance(o, dict) else o))
+        elif isinstance(o, int) and not isinstance(o, bool) and not -MAX_SAFE_INT <= o <= MAX_SAFE_INT:
+            return False
+    return True
 
 
 def _depth(obj: Any, limit: int) -> int:
@@ -269,7 +295,7 @@ def _depth(obj: Any, limit: int) -> int:
 def _canonical(body: dict) -> bytes:
     try:
         return canonical_json(body)
-    except (TypeError, ValueError) as e:
+    except (TypeError, ValueError, RecursionError) as e:
         raise InvalidEvent(f"event is not canonicalizable: {e}") from None
 
 
@@ -281,6 +307,7 @@ def verify_inception(event: dict, controller_check: ControllerKeyCheck) -> Ident
     _check_common(body, _INCEPTION_FIELDS)
     _require(body["seq"] == 0 and body.get("prev") is None, "inception must have seq=0, prev=null")
     _require(is_digest(body.get("next")), "inception must commit to a next key (pre-rotation)")
+    _require(key_commitment(body["key"]) != body["next"], "next key must differ from current key")
     _require(isinstance(body.get("meta"), dict), "meta must be an object")
     _require(_depth(body["meta"], MAX_META_DEPTH) <= MAX_META_DEPTH, f"meta may nest at most {MAX_META_DEPTH} levels")
     msg = _canonical(body)
