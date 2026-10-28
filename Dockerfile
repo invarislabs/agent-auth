@@ -8,7 +8,7 @@
 # For fully reproducible builds also pin the base image by digest
 # (python:3.12-slim-bookworm@sha256:...); Dependabot keeps it current.
 
-FROM python:3.12-slim-bookworm AS build
+FROM python:3.15-slim-bookworm AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /src
 COPY deploy/requirements.lock deploy/requirements.lock
@@ -18,7 +18,7 @@ COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY agentauth ./agentauth
 RUN /opt/agentauth/bin/pip install --no-deps .
 
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 LABEL org.opencontainers.image.title="AgentAuth registry" \
       org.opencontainers.image.source="https://github.com/invarislabs/agent-auth" \
       org.opencontainers.image.licenses="Apache-2.0"
