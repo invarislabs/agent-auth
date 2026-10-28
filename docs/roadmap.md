@@ -23,7 +23,10 @@ What's shipped, and what's next.
 - Limits enforced on every link, with shared counters so sub-agents can't multiply a budget
 - Refunds, fail-closed resource checks, path-traversal protection
 
-### v0.4: Production hardening
+### v0.4: Production hardening (released 2026-10-28)
+
+Install with `pip install invaris-agentauth`, or run the registry image `ghcr.io/invarislabs/agent-auth:0.4.0`. See the [changelog](../CHANGELOG.md) for everything in the release.
+
 - **Shared state:** Redis-backed replay cache and atomic (Lua) usage ledger; ledger counters pruned/expired with their grants
 - **Registry storage:** PostgreSQL support, versioned schema with migrations (`agentauth db migrate/status/verify`), integrity verification, SQLite durability and thread-safety fixes
 - **Registry service:** env configuration validated at startup, body-size limits, per-address rate limits, optional registration token, `/readyz`, Prometheus `/metrics`, JSON logs with request ids, pagination
@@ -34,14 +37,13 @@ What's shipped, and what's next.
 - **Stricter verification** everywhere, with every dependency failure failing closed (503)
 - **Deployment:** Dockerfile (hash-locked dependencies, non-root), docker compose stack (PostgreSQL, Redis, migration job)
 - **CI:** Python 3.10–3.14 with Redis and PostgreSQL services, minimum-dependency and httpx-only jobs, ruff, mypy, pip-audit, bandit, CodeQL, package and image builds
-
-### Tooling
-- Compatibility with both `httpx` and `httpx2` clients
-
-### v0.4 (continued): security review and TypeScript verifier
+- **Releases:** published on PyPI as `invaris-agentauth` (import name and CLI stay `agentauth`) through trusted publishing, and the registry image on `ghcr.io/invarislabs/agent-auth`, both built by a release workflow
 - **Internal security review** of the protocol core, the registry and the SDK, with every finding fixed and covered by a regression test ([security-audit-2026-10.md](security-audit-2026-10.md)). This was not an independent audit.
 - **TypeScript verifier** (`ts/`) for Node, Deno, Bun, browsers and edge runtimes, with no runtime dependencies. It verifies key event logs, signed requests, grant chains and revocation proofs, and its registry client binds controller keys and pins logs.
 - **Shared test vectors** (`test-vectors/`) that both implementations must pass, checked in CI
+
+### Tooling
+- Compatibility with both `httpx` and `httpx2` clients
 
 ## Next
 
