@@ -144,8 +144,33 @@ jobs:
         run: |
           python -m venv /tmp/lock
           /tmp/lock/bin/pip install --require-hashes -r deploy/requirements.lock
-          /tmp/lock/bin/pip install --no-deps .
+          /tmp/lock/bin/pip install --no-deps --no-build-isolation --no-index .
           /tmp/lock/bin/pip check
+      - name: Lock agrees with pyproject.toml
+        # Re-resolving with the committed pins as preferences must change nothing;
+        # a diff means pyproject.toml changed without regenerating the lock.
+        run: |
+          python -m pip install uv
+          cp deploy/requirements.lock /tmp/fresh.lock
+          uv pip compile pyproject.toml deploy/build-requirements.in --extra server --extra redis --extra postgres \
+            --python-version 3.12 --universal --generate-hashes --no-header -o /tmp/fresh.lock
+          diff <(grep -v '^#' deploy/requirements.lock) <(grep -v '^#' /tmp/fresh.lock)
+
+  typescript:
+    name: TypeScript verifier (shared test vectors)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ts
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+      - run: npm ci
+      - run: npm test
 
   package:
     name: Build package
