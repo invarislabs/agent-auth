@@ -5,15 +5,27 @@
   "license": "Apache-2.0",
   "author": "Invaris Labs",
   "homepage": "https://github.com/invarislabs/agent-auth/tree/main/ts",
-  "repository": { "type": "git", "url": "git+https://github.com/invarislabs/agent-auth.git", "directory": "ts" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/invarislabs/agent-auth.git",
+    "directory": "ts"
+  },
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/src/index.d.ts", "import": "./dist/src/index.js" }
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
   },
-  "files": ["dist/src", "README.md"],
-  "engines": { "node": ">=20" },
+  "files": [
+    "dist/src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -21,7 +33,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.6.0"
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
   }
 }
