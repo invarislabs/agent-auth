@@ -37,16 +37,33 @@ def _save(args, ident: AgentIdentity, name: str) -> None:
 
 def cmd_init(args, reg: RegistryClient):
     key_path = Path(args.dir).expanduser() / f"{args.name}.key.json"
-    if key_path.exists():
-        sys.exit(f"error: {key_path} already exists")
+    paths = AgentIdentity._paths(Path(args.dir), args.name, args.recovery_dir)
+    for p in paths:
+        if p.exists():
+            sys.exit(f"error: {p} already exists (refusing to overwrite another identity's keys)")
     controller = _load(args, args.controller) if args.controller else None
     meta = dict(kv.split("=", 1) for kv in args.meta)
     ident, event = AgentIdentity.create(name=args.name, controller=controller, meta=meta)
-    if not args.offline:
-        reg.register(event)
-    _save(args, ident, args.name)
+    # Keys are saved (never overwriting) *before* registering: a registered identity
+    # whose keys were never written would be unusable and unrecoverable.
+    if not _default_passphrase():
+        print("warning: key files are stored unencrypted; set AGENTAUTH_PASSPHRASE (or "
+              "AGENTAUTH_PASSPHRASE_FILE) to encrypt them", file=sys.stderr)
+    try:
+        ident.save(Path(args.dir), args.name, recovery_dir=args.recovery_dir, overwrite=False)
+    except FileExistsError as e:
+        sys.exit(f"error: {e} (refusing to overwrite another identity's keys)")
+    inception_path = key_path.parent / f"{args.name}.inception.json"
     if args.offline:
-        (key_path.parent / f"{args.name}.inception.json").write_text(json.dumps(event, indent=2))
+        inception_path.write_text(json.dumps(event, indent=2))
+    else:
+        try:
+            reg.register(event)
+        except Exception:
+            inception_path.write_text(json.dumps(event, indent=2))
+            print(f"registration failed; keys are saved and the inception event is in {inception_path}. "
+                  f"Retry with: agentauth register {args.name}", file=sys.stderr)
+            raise
     _out({"did": ident.did, "kid": ident.kid, "registered": not args.offline, "keys": str(key_path.parent)})
 
 
