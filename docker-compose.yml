@@ -27,6 +27,7 @@ services:
       POSTGRES_DB: agentauth
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes: [pgdata:/var/lib/postgresql/data]
+    mem_limit: 1g
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agentauth -d agentauth"]
       interval: 5s
@@ -36,14 +37,20 @@ services:
   redis:
     image: redis:7-alpine
     # AOF persistence so usage counters and replay entries survive a Redis restart.
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    # The password goes into a config file, not onto the command line (where `ps` shows it).
+    command:
+      - sh
+      - -c
+      - umask 077 && printf 'requirepass "%s"\n' "$$REDIS_PASSWORD" > /tmp/redis.conf && exec redis-server /tmp/redis.conf --appendonly yes
     volumes: [redisdata:/data]
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 5s
       retries: 20
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    mem_limit: 512m
     restart: unless-stopped
 
   migrate:
@@ -53,13 +60,16 @@ services:
     environment: *registry-env
     depends_on:
       postgres: {condition: service_healthy}
+    mem_limit: 256m
     restart: "no"
 
   registry:
     image: agentauth-registry:local
     command: ["serve", "--host", "0.0.0.0", "--port", "8000", "--workers", "3"]
     environment: *registry-env
-    ports: ["8000:8000"]
+    # Loopback only: put a TLS-terminating proxy in front, or change this deliberately.
+    ports: ["127.0.0.1:8000:8000"]
+    mem_limit: 768m
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}

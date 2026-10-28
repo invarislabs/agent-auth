@@ -1,0 +1,113 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "primitives.json",
+  "base58btc": [
+    {
+      "bytes_b64": "",
+      "encoded": ""
+    },
+    {
+      "bytes_b64": "AA==",
+      "encoded": "1"
+    },
+    {
+      "bytes_b64": "AAAB",
+      "encoded": "112"
+    },
+    {
+      "bytes_b64": "aGVsbG8gd29ybGQ=",
+      "encoded": "StV1DL6CwTryKyV"
+    },
+    {
+      "bytes_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "encoded": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE"
+    }
+  ],
+  "multikey": [
+    {
+      "public_key_b64": "TOCaHwC5Sg6ybKZ1wIL4cJzwBNA2SSEO1UD0+f9cByw=",
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s"
+    }
+  ],
+  "digest": [
+    {
+      "input_b64": "",
+      "digest": "zQmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n"
+    },
+    {
+      "input_b64": "YWJj",
+      "digest": "zQmatYkNGZnELf8cAGdyJpUca2PyY4szai3RHyyWofNY1pY"
+    },
+    {
+      "input_b64": "eyJhIjoxfQ==",
+      "digest": "zQmNRwNKPCo7tufiPf7zBwJhKdswzFLyWHE5am6tAXP7EbB"
+    }
+  ],
+  "key_commitment": [
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "commitment": "zQmTXqytw4JakWqKnxVD2pt9euWTJZYfPoofsk99m6WoGEG"
+    }
+  ],
+  "canonical_json": [
+    {
+      "json": "{\"b\":1,\"a\":[true,null,\"x\"],\"c\":{\"z\":0,\"y\":-5}}",
+      "canonical": "{\"a\":[true,null,\"x\"],\"b\":1,\"c\":{\"y\":-5,\"z\":0}}"
+    },
+    {
+      "json": "{\"k\":\"caf\\u00e9 \\ud83d\\ude00 \\\"q\\\" \\\\ \\n\\t\\u0001\"}",
+      "canonical": "{\"k\":\"café 😀 \\\"q\\\" \\\\ \\n\\t\\u0001\"}"
+    },
+    {
+      "json": "{\"\\u00e9\":1,\"z\":2,\"a\":3,\"\\ud83d\\ude00\":4,\"\\uffff\":5}",
+      "canonical": "{\"a\":3,\"z\":2,\"é\":1,\"￿\":5,\"😀\":4}"
+    }
+  ],
+  "canonical_json_invalid": [
+    {
+      "json": "{\"a\":1.5}",
+      "reason": "floats are not allowed"
+    },
+    {
+      "json": "{\"a\":1e3}",
+      "reason": "floats are not allowed"
+    }
+  ],
+  "signatures": [
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "message_b64": "YWdlbnRhdXRo",
+      "signature": "gmoUYxA85JolUEJF2fZVY0wSL-Lw-HGhsSAP9Mk8cpiAOekEH8xqdO6Zd1QmYqI1RPWj_MIbH6iM3BSn37j7AA",
+      "valid": true
+    },
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "message_b64": "b3RoZXI=",
+      "signature": "gmoUYxA85JolUEJF2fZVY0wSL-Lw-HGhsSAP9Mk8cpiAOekEH8xqdO6Zd1QmYqI1RPWj_MIbH6iM3BSn37j7AA",
+      "valid": false,
+      "reason": "signature over a different message"
+    },
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "message_b64": "YWdlbnRhdXRo",
+      "signature": "gmoUYxA85JolUEJF2fZVY0wSL-Lw-HGhsSAP9Mk8cpiAOekEH8xqdO6Zd1QmYqI1RPWj_MIbH6iM3BSn37j7AA=",
+      "valid": false,
+      "reason": "padded base64url is not canonical"
+    },
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "message_b64": "YWdlbnRhdXRo",
+      "signature": "!moUYxA85JolUEJF2fZVY0wSL-Lw-HGhsSAP9Mk8cpiAOekEH8xqdO6Zd1QmYqI1RPWj_MIbH6iM3BSn37j7AA",
+      "valid": false,
+      "reason": "character outside the base64url alphabet"
+    },
+    {
+      "multikey": "z6MkjdMfo5ricxwtPmjxKJD2xoCnyABXkf3Y9faKAwdDS24s",
+      "message_b64": "YWdlbnRhdXRo",
+      "signature": "gmoUYxA85JolUEJF2fZVY0wSL-Lw-HGhsSAP9Mk8cpiAOekEH8xqdO6Zd1QmYqI1RPWj_MIbH6iM3BSn37j7A",
+      "valid": false,
+      "reason": "truncated signature"
+    }
+  ]
+}

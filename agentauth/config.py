@@ -131,6 +131,10 @@ class Settings:
             raise ConfigError("AGENTAUTH_LOG_FORMAT must be json or text")
         if self.redis_url and not self.redis_url.startswith(("redis://", "rediss://", "unix://")):
             raise ConfigError("AGENTAUTH_REDIS_URL must be a redis://, rediss:// or unix:// URL")
+        for name, value in (("AGENTAUTH_DATABASE_URL", self.database_url), ("AGENTAUTH_REDIS_URL", self.redis_url),
+                            ("AGENTAUTH_REGISTRATION_TOKEN", self.registration_token)):
+            if value and "change-me" in value.lower():
+                raise ConfigError(f"{name} still contains the CHANGE-ME placeholder from .env.example")
 
     def describe(self) -> dict:
         """Settings safe to log (no secrets, no credentials in URLs; nothing derived from the

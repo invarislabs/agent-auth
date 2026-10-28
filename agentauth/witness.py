@@ -189,16 +189,39 @@ class RegistryPool:
             raise RuntimeError(f"only {answered} of {len(self.registries)} registries answered: {'; '.join(errors)}")
         return slots
 
-    def log(self, did: str) -> list:
-        from .sdk import RegistryError
+    def _valid_logs(self, did: str, check) -> list:
+        """Each registry's log, keeping only those that verify. A registry serving an
+        invalid log (e.g. one with a forged controller deactivation) is ignored rather
+        than allowed to win the longest-log merge."""
+        out = []
+        for reg, slot in zip(self.registries, self._logs(did), strict=True):
+            if not slot:
+                continue
+            try:
+                verify_log(slot, check)
+            except InvalidEvent as e:
+                log.warning("ignoring an invalid log for %s from %s: %s", did, getattr(reg, "base_url", reg), e)
+                continue
+            out.append(slot)
+        return out
 
-        merged = merge_logs(did, [s for s in self._logs(did) if s is not None])
+    def controller_keys(self, did: str) -> set:
+        """Every key `did` has held, across the pool (see sdk.controller_keys_via)."""
+        merged = merge_logs(did, self._valid_logs(did, lambda d, k: True))
+        return {k for _, k in verify_log(merged).history} if merged else set()
+
+    def log(self, did: str) -> list:
+        from .sdk import RegistryError, bound_controller_check
+
+        merged = merge_logs(did, self._valid_logs(did, bound_controller_check(self)))
         if not merged:
             raise RegistryError(404, "unknown identity")
         return merged
 
     def verified_state(self, did: str) -> IdentityState:
-        state = verify_log(self.log(did))
+        from .sdk import bound_controller_check
+
+        state = verify_log(self.log(did), bound_controller_check(self))
         if state.did != did:
             raise InvalidEvent("registry returned a log for a different DID")
         return state
@@ -316,7 +339,12 @@ class RegistryPool:
         from .sdk import RegistryError
 
         slots = self._logs(did)
-        merged = merge_logs(did, [s for s in slots if s is not None])
+        try:
+            merged = self.log(did)  # only logs that verify are ever copied
+        except RegistryError as e:
+            if e.status != 404:
+                raise
+            merged = []
         pushed: list = []
         for reg, have in zip(self.registries, slots, strict=True):
             if have is None:  # unreachable right now; sync it next time

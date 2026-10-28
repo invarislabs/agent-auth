@@ -15,8 +15,12 @@ Include what you found, how to reproduce it, and the impact you expect. We'll ac
 
 ## Audit status
 
-AgentAuth has **not** had an independent security audit. v0.4 was hardened and is tested against the attacks listed in the [threat model](docs/threat-model.md), including adversarial, fuzz and concurrency tests, but that is not a substitute for external review. An audit is planned before 1.0 ([roadmap](docs/roadmap.md)).
+AgentAuth has **not** had an independent security audit.
+
+- **v0.4 hardening.** v0.4 was hardened and is tested against the attacks listed in the [threat model](docs/threat-model.md), including adversarial, fuzz and concurrency tests.
+- **Internal review.** In October 2026 the maintainers ran an internal review of the protocol core, the registry and the SDK. Its findings and fixes are in [docs/security-audit-2026-10.md](docs/security-audit-2026-10.md). It was not independent, so it is not a substitute for external review.
+- **External audit.** One is planned before 1.0 ([roadmap](docs/roadmap.md)). [docs/audit-brief.md](docs/audit-brief.md) sets out its scope for auditors.
 
 ## Scope
 
-In scope: the protocol (docs/protocol.md), the Python package, the registry, the Docker image and the deployment configuration in this repository. Known limitations are listed in the threat model; reports showing they're worse than described are welcome.
+In scope: the protocol (docs/protocol.md), the Python package, the TypeScript verifier (`ts/`), the shared test vectors, the registry, the Docker image and the deployment configuration in this repository. Known limitations are listed in the threat model; reports showing they're worse than described are welcome.

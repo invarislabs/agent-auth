@@ -44,12 +44,18 @@ class LimitError(Exception):
 # --------------------------------------------------------------------------- #
 
 
+def _control(c: str) -> bool:
+    """C0 controls, DEL and C1 controls."""
+    o = ord(c)
+    return o < 0x20 or 0x7F <= o <= 0x9F
+
+
 def _valid_pattern(p: str) -> bool:
     return (
         isinstance(p, str)
         and 0 < len(p) <= MAX_RESOURCE_LEN
         and "*" not in p[:-1]
-        and not any(c.isspace() or ord(c) < 32 for c in p)
+        and not any(c.isspace() or _control(c) for c in p)
     )
 
 
@@ -60,7 +66,7 @@ def _unsafe_resource(r: str) -> bool:
         or not r
         or len(r) > 4 * MAX_RESOURCE_LEN
         or "*" in r
-        or any(ord(c) < 32 for c in r)
+        or any(_control(c) for c in r)
         or any(seg in ("..", ".") for seg in r.replace("\\", "/").split("/"))
     )
 
@@ -148,7 +154,7 @@ class Limits:
             if not isinstance(sp, dict) or set(sp) - {"unit", "per_call", "total"}:
                 raise LimitError("spend must be {unit, per_call?, total?}", 400)
             u = sp.get("unit")
-            if not isinstance(u, str) or not u or len(u) > MAX_UNIT_LEN or any(c.isspace() or ord(c) < 32 for c in u):
+            if not isinstance(u, str) or not u or len(u) > MAX_UNIT_LEN or any(c.isspace() or _control(c) for c in u):
                 raise LimitError("spend.unit is required (1-64 characters, no whitespace)", 400)
             if "per_call" not in sp and "total" not in sp:
                 raise LimitError("spend needs per_call and/or total", 400)

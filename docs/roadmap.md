@@ -38,6 +38,11 @@ What's shipped, and what's next.
 ### Tooling
 - Compatibility with both `httpx` and `httpx2` clients
 
+### Unreleased: internal security review and TypeScript verifier
+- **Internal security review** of the protocol core, the registry and the SDK, with every finding fixed and covered by a regression test ([security-audit-2026-10.md](security-audit-2026-10.md)). This was not an independent audit.
+- **TypeScript verifier** (`ts/`) for Node, Deno, Bun, browsers and edge runtimes, with no runtime dependencies. It verifies key event logs, signed requests, grant chains and revocation proofs, and its registry client binds controller keys and pins logs.
+- **Shared test vectors** (`test-vectors/`) that both implementations must pass, checked in CI
+
 ## Next
 
 ### 1. Closing the remaining registry gaps
@@ -49,7 +54,7 @@ What's shipped, and what's next.
 - Optional multi-key thresholds (e.g. 2-of-3 recovery keys). This needs a new event format.
 
 ### 3. Ecosystem
-- **TypeScript verifier and client.** Much agent tooling runs on Node.
+- **TypeScript issuing and signing.** The verifier has shipped; signing requests and issuing grants from Node is next, followed by publishing to npm.
 - **Adapters** for popular agent frameworks
 - **Helm chart / Kubernetes manifests** for the registry
 - A **standalone written spec**, and possible alignment with RFC 9421 HTTP Message Signatures
@@ -59,7 +64,7 @@ What's shipped, and what's next.
 - An exporter for audit-log heads
 
 ### 5. Independent security review
-An external audit of the protocol and implementation before 1.0.
+An external audit of the protocol and both implementations before 1.0. The internal review (October 2026) is done. [audit-brief.md](audit-brief.md) describes the scope, the threat model and where to start.
 
 ## Open questions
 

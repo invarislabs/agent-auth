@@ -47,6 +47,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
 """
 
 
+def _clean(v: Any, limit: int = 2048) -> Any:
+    """Make a client-influenced value safe to canonicalize: lone surrogates (which canonical
+    JSON refuses) become U+FFFD and long strings are cut, so a hostile path, resource or
+    request id can't make an audit write fail and leave a decision unrecorded."""
+    if v is None:
+        return None
+    if isinstance(v, (list, tuple)):
+        return [_clean(x, limit) for x in v][:64]
+    s = v if isinstance(v, str) else str(v)
+    return s.encode("utf-16", "surrogatepass").decode("utf-16", "replace")[:limit]
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -85,21 +97,21 @@ class AuditLog:
             "v": VERSION,
             "ts": _now(),
             "instance": self.instance,
-            "agent": agent,
-            "principal": getattr(authz, "principal", None),
-            "via": list(getattr(authz, "via", []) or []),
-            "grants": [[g.iss, g.id] for g in authz.chain.links] if authz is not None else [],
-            "scopes": list(scopes or []),
-            "resource": resource,
+            "agent": _clean(agent),
+            "principal": _clean(getattr(authz, "principal", None)),
+            "via": _clean(list(getattr(authz, "via", []) or [])),
+            "grants": [_clean([g.iss, g.id]) for g in authz.chain.links] if authz is not None else [],
+            "scopes": _clean(list(scopes or []), 256),
+            "resource": _clean(resource),
             "amount": int(amount or 0),
-            "unit": unit,
+            "unit": _clean(unit, 64),
             "charged": int(getattr(authz, "charged", 0) or 0),
             "outcome": outcome,
             "status": int(status),
-            "reason": (reason or None) and str(reason)[:500],
-            "request_id": request_id,
-            "method": method,
-            "path": (path or None) and path[:2048],
+            "reason": _clean(reason or None, 500),
+            "request_id": _clean(request_id, 128),
+            "method": _clean(method, 32),
+            "path": _clean(path or None),
         }
         with self._lock:
             cur = self._db.cursor()

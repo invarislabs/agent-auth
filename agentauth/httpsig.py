@@ -49,7 +49,7 @@ _TS_RE = re.compile(r"\A[0-9]{1,15}\Z")
 # >= 16 characters (the reference client sends 22 base64url characters = 128 bits).
 _NONCE_RE = re.compile(r"\A[A-Za-z0-9_\-.~+/=]{16,128}\Z")
 _KID_RE = re.compile(r"\A(.+)#key-(0|[1-9][0-9]{0,8})\Z")
-_AUD_RE = re.compile(r"\A[^\s,\"]{1,255}\Z")
+_AUD_RE = re.compile(r"\A[\x21\x23-\x2b\x2d-\x7e]{1,255}\Z")  # ASCII host[:port], see grants._AUD_RE
 
 log = logging.getLogger("agentauth.httpsig")
 
@@ -111,7 +111,7 @@ def parse_authorization(header: str) -> dict:
     """Strictly parse an AgentSig header. Duplicate or malformed parameters are rejected."""
     if not isinstance(header, str) or not header.startswith(SCHEME + " "):
         raise AuthError(f"missing or non-{SCHEME} Authorization header")
-    if len(header) > MAX_HEADER_BYTES:
+    if len(header.encode("utf-8", "surrogatepass")) > MAX_HEADER_BYTES:
         raise AuthError("Authorization header too large")
     rest = header[len(SCHEME) + 1 :]
     params: dict = {}
@@ -167,10 +167,14 @@ class NonceCache:
     are refused rather than evicting live entries (which would allow replays).
     """
 
-    def __init__(self, ttl: int, max_entries: int = 1_000_000):
+    def __init__(self, ttl: int, max_entries: int = 1_000_000, max_per_did: int = 100_000):
         self.ttl = ttl
         self.max_entries = max_entries
+        # One agent may not hold more than this many live nonces, so a single (valid,
+        # signing) agent can't fill the cache and lock every other agent out.
+        self.max_per_did = max_per_did
         self._seen: OrderedDict = OrderedDict()
+        self._per_did: dict = {}
         self._lock = threading.Lock()
 
     def _prune(self, now: float) -> None:
@@ -180,6 +184,11 @@ class NonceCache:
             if exp > now:
                 break
             seen.popitem(last=False)
+            left = self._per_did.get(k[0], 1) - 1
+            if left:
+                self._per_did[k[0]] = left
+            else:
+                self._per_did.pop(k[0], None)
 
     def check_and_store(self, did: str, nonce: str) -> bool:
         now = time.time()
@@ -190,7 +199,10 @@ class NonceCache:
                 return False
             if len(self._seen) >= self.max_entries:
                 raise ReplayCacheUnavailable("replay cache is full")
+            if self._per_did.get(did, 0) >= self.max_per_did:
+                raise ReplayCacheUnavailable("too many requests from this agent inside the replay window")
             self._seen[key] = now + self.ttl
+            self._per_did[did] = self._per_did.get(did, 0) + 1
             return True
 
     def __len__(self) -> int:

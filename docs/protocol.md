@@ -110,12 +110,15 @@ A verifier MUST check that:
 
 1. `v == "agentauth/1"`, `type == "inception"`, `seq == 0` (an integer, not a boolean), `prev == null`, and `ts` matches `YYYY-MM-DDThh:mm:ssZ`.
 2. The body has **exactly** the fields shown above (no more, no fewer).
-3. `key` is a valid Ed25519 multikey, and `next` is a well-formed digest (§1.3: `z` + base58btc of the 34-byte sha2-256 multihash). Pre-rotation is mandatory.
+3. `key` is a valid Ed25519 multikey, and `next` is a well-formed digest (§1.3: `z` + base58btc of the 34-byte sha2-256 multihash), and `next != commitment(key)`. Pre-rotation is mandatory, and committing to the current key would make it meaningless.
 4. `did` equals the derivation above.
 5. `signer == did`, and `sig` verifies against `key`.
 6. `controller` is `null`, or an agent DID different from `did`.
 7. `meta` is an object nested at most 16 levels deep.
-8. If `controller` is set: `controller_proof` is an object with exactly `key` and `sig`, and `controller_proof.sig` MUST verify over `canonical_json(body)` with `controller_proof.key`. A registry MUST additionally check that `controller_proof.key` is the controller's **current** key.
+8. If `controller` is set: `controller_proof` is an object with exactly `key` and `sig`, and `controller_proof.sig` MUST verify over `canonical_json(body)` with `controller_proof.key`. A registry MUST additionally check that `controller_proof.key` is the controller's **current** key, and MUST make that check atomically with storing the event (no rotation of the controller may slip in between).
+9. Before anything else, the whole event (envelope included) is nested at most **24** levels deep and holds no integer outside ±(2⁵³−1). Verifiers check this iteratively, before canonicalizing or hashing, so deep nesting is rejected rather than exhausting a stack.
+
+**Controller key binding.** A signature check alone only proves that *some* key signed a controller proof or a controller deactivation. Clients that replay a log they fetched (rather than a registry checking live state) MUST also check that the key appears in the controller's own verified key event log (any key it has held). Otherwise a registry, or anyone serving logs, could append a "controller deactivation" signed by a key the controller never had. The reference SDK does this in `RegistryClient.verified_state`, `RegistryKeyResolver` and `RegistryPool` (`bound_controller_check`).
 
 A DID is `did:agent:` followed by 40–60 base58btc characters (in practice 46). Verifiers SHOULD reject anything else wherever a DID is expected.
 
@@ -147,7 +150,7 @@ On top of the common checks (§2.5), a verifier MUST check that:
 A deactivation is valid if either of these holds:
 
 - **Self-deactivation:** `signer == did`, and `commitment(key) == state.next` (signed with the pre-committed recovery key); or
-- **Controller deactivation:** `signer == state.controller`, and `key` is the controller's current key. A registry checks this against live state. An auditor MAY accept any key the controller has ever held.
+- **Controller deactivation:** `signer == state.controller`, and `key` is the controller's current key. A registry checks this against live state, atomically with storing the event. A client replaying a log MUST check that `key` is in the controller's verified key history (see *controller key binding* in §2.2).
 
 In both cases `sig` MUST verify against `key` and `next` MUST be `null`. After deactivation the identity has no key, and no further events are accepted.
 
@@ -261,10 +264,11 @@ If the verifier cannot complete a step because a dependency failed (key resoluti
 }
 ```
 
-- `scope` and `aud` are sorted and de-duplicated, and `aud` is lower-cased.
+- `scope` and `aud` are sorted (by code point) and de-duplicated, and `aud` is lower-cased (ASCII). Verifiers MUST reject a body where this doesn't hold, so one grant has exactly one form.
+- A grant with stateful limits (`spend.total`, `rate` or `uses`, §5.4) MUST NOT have the audience `"*"`. Every service keeps its own counters, so a budget on `"*"` would be granted once per service. Issuers refuse it (400) and verifiers reject it (403).
 - `limits` is omitted when there are no limits (see §5).
 - A body with any field not shown above is **invalid** (fail closed: a future constraint must never be silently ignored).
-- `id` and `parent` are 1–128 characters from `A–Z a–z 0–9 _ - . :`. `iss` and `sub` are agent DIDs; `kid` starts with `iss + "#key-"`. `scope` has 1–64 entries, `aud` 1–32 entries of 1–255 characters without whitespace, `,` or `"`. `nbf` and `exp` are integers in [0, 2⁵³−1]; `depth` is a non-negative integer.
+- `id` and `parent` are 1–128 characters from `A–Z a–z 0–9 _ - . :`. `iss` and `sub` are agent DIDs; `kid` starts with `iss + "#key-"`. `scope` has 1–64 entries, `aud` 1–32 entries of 1–255 printable ASCII characters (`0x21`–`0x7E`) other than `,` and `"`. `nbf` and `exp` are integers in [0, 2⁵³−1]; `depth` is a non-negative integer.
 
 ### 4.2 Encoding
 
@@ -275,16 +279,18 @@ header = grant_root "," grant_1 "," … "," grant_leaf          (at most 8 links
 
 The header name is `AgentGrant`. Verifiers MAY reject headers longer than 32 KiB (the reference implementation does).
 
+The payload MUST be exactly `canonical_json(body)`, byte for byte. Verifiers decode it, reject duplicate object keys, floats, integers outside ±(2⁵³−1) and nesting deeper than 8 levels (400), re-canonicalize the result and reject it (400) unless it equals the bytes received. Without this, two JSON parsers (say, Python's and JavaScript's) could read different values out of the same signed token: a duplicate `sub` key, or `1.0` versus `1`.
+
 ### 4.3 Scopes
 
-- A scope is a non-empty string of at most 128 characters with no whitespace.
+- A scope is 1–128 printable ASCII characters (`0x21`–`0x7E`).
 - `*` may only appear as the whole scope (`"*"`) or as a trailing `.*` (`"tools.*"`).
 - `covers(p, c)` holds when `p == "*"`, or `p == c`, or `p` ends in `.*` and `c` starts with `p` minus the `*` and `c != that prefix`. So `tools.*` covers `tools.search` and `tools.*`, but not `tools`.
 - A set of scopes P covers a set C if every `c` in C is covered by some `p` in P.
 
 ### 4.4 Audiences
 
-A set of audiences P covers C if `"*"` is in P, or every element of C is in P (compared case-insensitively).
+A set of audiences P covers C if `"*"` is in P, or every element of C is in P (compared ASCII-case-insensitively; audiences are ASCII-only, so no Unicode case folding is involved).
 
 ### 4.5 Verification
 
@@ -333,9 +339,8 @@ The effective scopes are the **leaf's** scopes. The endpoint's required scopes M
 
 | Field | Rules |
 |---|---|
-| `resources` | 1–32 patterns of at most 256 characters, with no whitespace or control characters. A `*` may appear only as the last character, meaning prefix match. |
-| `spend.unit` | Non-empty string. Required if `spend` is present. |
-| `spend.unit` | 1–64 characters, no whitespace or control characters |
+| `resources` | 1–32 patterns of at most 256 characters, with no whitespace or control characters (C0, DEL and C1: U+0000–U+001F, U+007F–U+009F). A `*` may appear only as the last character, meaning prefix match. "Whitespace" means Python's `str.isspace()`. |
+| `spend.unit` | Required if `spend` is present. 1–64 characters, no whitespace or control characters (as above). |
 | `spend.per_call`, `spend.total` | Positive integers ≤ 2⁵³−1. At least one is required. |
 | `rate.count`, `rate.per` | Positive integers ≤ 2⁵³−1. `per` is at most 86400 seconds. |
 | `uses` | Positive integer ≤ 2⁵³−1 |
@@ -359,7 +364,7 @@ A service declares, per endpoint, the `resource` the call touches (optional), th
 
 - If the link has `resources`:
   - the endpoint MUST declare a resource, otherwise reject (fail closed);
-  - reject resources that contain `*`, control characters, or a `.` or `..` path segment;
+  - reject resources that contain `*`, control characters (C0, DEL, C1), or a `.` or `..` path segment (`\` counts as a separator);
   - the resource MUST match one of the link's patterns.
 - If the link has `spend` and `amount > 0`:
   - `unit` MUST equal `spend.unit`;
@@ -453,6 +458,10 @@ Nothing in the protocol ties an identity to one registry. A client MAY submit ev
 | Default grant TTL | 900 s |
 | Maximum grant TTL | 86400 s |
 | Maximum chain length | 8 |
+| Event nesting (envelope included) | ≤ 24 levels |
+| `meta` nesting | ≤ 16 levels |
+| Grant body nesting | ≤ 8 levels |
+| Events per identity (reference registry) | ≤ 10,000 |
 
 ---
 
@@ -471,3 +480,10 @@ Formats and version strings are unchanged. Verification is stricter; every item 
 | Limits | Upper bounds on numbers and `spend.unit` (§5.1); refunds can't exceed the amount charged |
 | Revocations | Exact field sets and formats (§6) |
 | Failures | A dependency failure during verification rejects the request with 503 |
+| Inception | `next` may not commit to the current key (§2.2); events nested deeper than 24 levels or holding integers beyond 2⁵³−1 are rejected before hashing |
+| Controller keys | Clients replaying logs bind controller signatures to the controller's verified key history (§2.2) |
+| Grant encoding | The payload must be exactly `canonical_json(body)`: no duplicate keys, floats or alternative spellings; nesting ≤ 8 (§4.2) |
+| Grant fields | Audiences and scopes are printable ASCII; `aud` and `scope` must already be sorted, de-duplicated and (for `aud`) lower-cased; stateful limits can't use audience `"*"` (§4.1) |
+| Limits | DEL and C1 control characters are rejected in patterns, units and requested resources (§5.1, §5.3) |
+
+The last five rows came out of the October 2026 internal security review ([security-audit-2026-10.md](security-audit-2026-10.md)). A grant issued by the v0.3 or v0.4 reference SDK still verifies, unless it uses a non-ASCII audience or scope, or a budget, rate or use limit on audience `"*"`.

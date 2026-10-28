@@ -1,0 +1,27 @@
+{
+  "name": "@invarislabs/agentauth",
+  "version": "0.1.0",
+  "description": "TypeScript verifier for AgentAuth: key event logs, AgentSig signed requests and AgentGrant delegation chains",
+  "license": "Apache-2.0",
+  "author": "Invaris Labs",
+  "homepage": "https://github.com/invarislabs/agent-auth/tree/main/ts",
+  "repository": { "type": "git", "url": "git+https://github.com/invarislabs/agent-auth.git", "directory": "ts" },
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/src/index.d.ts", "import": "./dist/src/index.js" }
+  },
+  "files": ["dist/src", "README.md"],
+  "engines": { "node": ">=20" },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

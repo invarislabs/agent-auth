@@ -278,16 +278,23 @@ If an *allowed* decision can't be written to the log, the call is refunded and r
 from agentauth.asgi import PUBLIC, AgentAuthMiddleware, Requirement
 
 def rules(req):
-    if req.path in ("/healthz", "/docs"):
+    if req.path == "/healthz":
         return PUBLIC                                   # no authentication
     if req.path == "/search":
         return Requirement(scopes=["tools.search"])     # grant required
-    return None                                         # signature only
+    return Requirement(scopes=["admin"])                # deny by default: anything unlisted needs a strong grant
 
 app = AgentAuthMiddleware(app, verifier=verifier, grants=grants, rules=rules, audit=audit)
 ```
 
-The result is available to your handlers as `request.state.agentauth` (a `VerifiedAgent` or `AuthorizedAgent`).
+The result is available to your handlers as `request.state.agentauth` (a `VerifiedAgent` or `AuthorizedAgent`). `scope["user"]` is set to an `AgentUser` whose `identity` is the agent's DID, so `request.user.is_authenticated` is true and anything keyed on the user sees the agent.
+
+Some behaviour to know when writing rules:
+
+- **`req.path` is the route path.** It is relative to the app the middleware wraps: under `Mount("/api", app=...)`, a request to `/api/search` has `req.path == "/search"`, matching what the app routes on. `req.full_path` keeps the prefix.
+- **Write rules deny-by-default.** Return the strictest requirement unless a path is known to need less, so a route added later isn't left open.
+- **WebSockets are checked too.** The handshake goes through `rules` with `req.websocket` true, method `GET` and an empty body. Unless the rule is `PUBLIC`, the client must sign the handshake: `agent.authorization("GET", "https://host/ws", b"", grants)` as the `Authorization` header. Otherwise the connection is closed with code 1008 before your app sees it. A long-lived connection isn't re-checked after it opens.
+- **Duplicate security headers are refused.** A request with two `Authorization`, `Host` or `AgentGrant` headers gets 400.
 
 ### 8. MCP servers
 
@@ -303,6 +310,8 @@ app = AgentAuthMiddleware(server.streamable_http_app(), verifier=verifier, grant
 ```
 
 `resource=` lets resource limits on grants apply to tool arguments.
+
+The middleware binds each `Mcp-Session-Id` to the agent that opened it. Another agent presenting the same session id gets 403. The binding is held in the worker's memory, so with several workers or replicas, route a session's requests to the same worker (sticky sessions), or enforce ownership in the MCP server's own session store. `mcp_rules` authorizes `tools/call` per tool. Other methods (`resources/read`, `prompts/get`, …) need only `mcp.session`, so add your own checks if they expose sensitive data.
 
 On the client side, give the MCP client an HTTP client that signs every request:
 
@@ -334,6 +343,8 @@ grant_verifier.enforce(authz, resource="/reports/q3.pdf", amount=0)
 ```
 
 - Pass the **raw** request target (percent-encoding intact, plus `?query`), not a decoded path. For ASGI apps, `request_target(scope)` computes it.
+- **Don't let your HTTP client follow redirects with agent credentials.** httpx doesn't by default. If you turn on `follow_redirects`, the `AgentGrant` header goes to the redirect target too. That grant can't be used without the agent's key, but it reveals the delegation chain.
+- **TypeScript services.** [`ts/`](../ts/README.md) has a verifier with the same API shape (`RequestVerifier`, `GrantVerifier`, `RegistryClient`), checked against the same test vectors.
 - Catch `AuthError` and `GrantError` and use their `.status`: 401/403/402/429 for the caller's problems, 400 for malformed input, 503 when a dependency (registry, Redis, policy) failed.
 
 ### 10. Tuning freshness

@@ -17,16 +17,20 @@ refused, so an old binary can never write to a schema it doesn't understand.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
+import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from .identity import IdentityState, InvalidEvent, event_digest, verify_log
+
+log = logging.getLogger("agentauth.store")
 
 
 class Conflict(Exception):
@@ -224,18 +228,35 @@ class _BaseStore:
 
     # -- writes ------------------------------------------------------------ #
 
-    def append(self, event: dict, new_state: IdentityState, expected_prev_seq: Optional[int]) -> None:
+    def append(self, event: dict, new_state: IdentityState, expected_prev_seq: Optional[int], *,
+               lock_also: tuple = (),
+               precondition: Optional[Callable[[Callable[[str], Optional[IdentityState]]], None]] = None) -> None:
         """Atomically append `event` and persist `new_state`.
 
         `expected_prev_seq` is None for inception. Concurrent writers racing on
         the same seq are rejected with Conflict (optimistic concurrency; the
         (did, seq) primary key is the final arbiter).
+
+        `lock_also` names other DIDs whose writers must wait (e.g. the
+        controller of a new identity); `precondition(state_of)` runs while those
+        locks are held and may raise to abort, so a check like "the controller
+        key is still current" can't be invalidated by a concurrent rotation
+        between the check and the write. `state_of(did)` reads through the
+        transaction's own connection (no second pool connection is taken).
         """
         body = event["body"]
         state_json = json.dumps(dataclasses.asdict(new_state))
         try:
             with self._tx() as cur:
-                self._lock_did(cur, body["did"])
+                for other in sorted({body["did"], *lock_also}):
+                    self._lock_did(cur, other)
+                if precondition is not None:
+                    def state_of(did: str, cur=cur) -> Optional[IdentityState]:
+                        cur.execute(self._sql("SELECT state FROM identities WHERE did=?"), (did,))
+                        row = cur.fetchone()
+                        return _state_from_json(row[0]) if row else None
+
+                    precondition(state_of)
                 cur.execute(self._sql("SELECT MAX(seq) FROM events WHERE did=?"), (body["did"],))
                 cur_seq = cur.fetchone()[0]
                 if cur_seq != expected_prev_seq:
@@ -348,7 +369,17 @@ class _SQLiteTx:
 
     def __exit__(self, exc_type, exc, tb):
         try:
-            self.cur.execute("COMMIT" if exc_type is None else "ROLLBACK")
+            if exc_type is None:
+                try:
+                    self.cur.execute("COMMIT")
+                except BaseException:
+                    # A failed COMMIT (disk full, I/O error, SQLITE_BUSY) leaves the transaction
+                    # open; roll it back so the shared connection isn't stuck inside it.
+                    with contextlib.suppress(Exception):
+                        self.cur.execute("ROLLBACK")
+                    raise
+            else:
+                self.cur.execute("ROLLBACK")
         finally:
             self.store._lock.release()
         return False
@@ -371,7 +402,10 @@ class Store(_BaseStore):
         for attempt in range(12):
             try:
                 if path != ":memory:":
-                    self._db.execute("PRAGMA journal_mode=WAL")
+                    mode = self._db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+                    if str(mode).lower() != "wal":
+                        log.warning("SQLite did not switch to WAL mode (journal_mode=%s); concurrent readers "
+                                    "will block writers", mode)
                 # FULL: a committed revocation or deactivation must survive power loss.
                 self._db.execute("PRAGMA synchronous=FULL")
                 if auto_migrate:

@@ -1,0 +1,544 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "limits.json",
+  "narrowing": [
+    {
+      "parent": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "child": {
+        "resources": [
+          "/reports/2026/*"
+        ]
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "child": {
+        "resources": [
+          "/secrets/*"
+        ]
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "child": {},
+      "violation": true
+    },
+    {
+      "parent": {
+        "resources": [
+          "/reports/q3.pdf"
+        ]
+      },
+      "child": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 100
+        }
+      },
+      "child": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 50
+        }
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 100
+        }
+      },
+      "child": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 150
+        }
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 100
+        }
+      },
+      "child": {
+        "spend": {
+          "unit": "EUR-cents",
+          "total": 50
+        }
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "spend": {
+          "unit": "USD-cents",
+          "per_call": 10
+        }
+      },
+      "child": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 5
+        }
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "rate": {
+          "count": 10,
+          "per": 60
+        }
+      },
+      "child": {
+        "rate": {
+          "count": 100,
+          "per": 3600
+        }
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "rate": {
+          "count": 10,
+          "per": 60
+        }
+      },
+      "child": {
+        "rate": {
+          "count": 5,
+          "per": 10
+        }
+      },
+      "violation": true
+    },
+    {
+      "parent": {
+        "rate": {
+          "count": 10,
+          "per": 60
+        }
+      },
+      "child": {},
+      "violation": true
+    },
+    {
+      "parent": {
+        "uses": 10
+      },
+      "child": {
+        "uses": 10
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "uses": 10
+      },
+      "child": {
+        "uses": 11
+      },
+      "violation": true
+    },
+    {
+      "parent": {},
+      "child": {
+        "uses": 3,
+        "resources": [
+          "x"
+        ]
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "resources": [
+          "/a﻿/*"
+        ]
+      },
+      "child": {
+        "resources": [
+          "/a﻿/b"
+        ]
+      },
+      "violation": false
+    },
+    {
+      "parent": {
+        "resources": [
+          "/😀/*",
+          "/￿/*"
+        ]
+      },
+      "child": {
+        "resources": [
+          "/￿/x"
+        ]
+      },
+      "violation": false
+    }
+  ],
+  "invalid": [
+    {
+      "limits": {
+        "resources": []
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "a*b"
+        ]
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "has space"
+        ]
+      }
+    },
+    {
+      "limits": {
+        "uses": 0
+      }
+    },
+    {
+      "limits": {
+        "uses": 9007199254740992
+      }
+    },
+    {
+      "limits": {
+        "uses": true
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "u"
+        }
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "a b",
+          "total": 1
+        }
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "total": 1
+        }
+      }
+    },
+    {
+      "limits": {
+        "rate": {
+          "count": 1,
+          "per": 86401
+        }
+      }
+    },
+    {
+      "limits": {
+        "rate": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "limits": {
+        "geo": "EU"
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/a/*"
+        ]
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/a/"
+        ]
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "u",
+          "total": 1
+        }
+      }
+    }
+  ],
+  "check_call": [
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/q3.pdf",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/secrets/x",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": null,
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/../secrets/x",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/./x",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/x*",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/x",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports/x",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "resources": [
+          "/reports/*"
+        ]
+      },
+      "resource": "/reports\\..\\secrets",
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "USD-cents",
+          "per_call": 100
+        }
+      },
+      "resource": null,
+      "amount": 100,
+      "unit": "USD-cents",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "USD-cents",
+          "per_call": 100
+        }
+      },
+      "resource": null,
+      "amount": 101,
+      "unit": "USD-cents",
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "USD-cents",
+          "per_call": 100
+        }
+      },
+      "resource": null,
+      "amount": 50,
+      "unit": "EUR-cents",
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "limits": {
+        "spend": {
+          "unit": "USD-cents",
+          "total": 100
+        }
+      },
+      "resource": null,
+      "amount": 0,
+      "unit": null,
+      "expect": {
+        "valid": true
+      }
+    }
+  ],
+  "pattern_matches": [
+    {
+      "pattern": "/reports/*",
+      "resource": "/reports/q3.pdf",
+      "matches": true
+    },
+    {
+      "pattern": "/reports/*",
+      "resource": "/reports",
+      "matches": false
+    },
+    {
+      "pattern": "/reports/q3.pdf",
+      "resource": "/reports/q3.pdf",
+      "matches": true
+    },
+    {
+      "pattern": "/reports/q3.pdf",
+      "resource": "/reports/q4.pdf",
+      "matches": false
+    },
+    {
+      "pattern": "*",
+      "resource": "anything",
+      "matches": true
+    }
+  ],
+  "pattern_covers": [
+    {
+      "parent": "/reports/*",
+      "child": "/reports/2026/*",
+      "covers": true
+    },
+    {
+      "parent": "/reports/2026/*",
+      "child": "/reports/*",
+      "covers": false
+    },
+    {
+      "parent": "/a/*",
+      "child": "/a/b",
+      "covers": true
+    },
+    {
+      "parent": "/a/b",
+      "child": "/a/*",
+      "covers": false
+    }
+  ]
+}

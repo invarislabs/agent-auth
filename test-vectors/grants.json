@@ -1,0 +1,726 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "grants.json",
+  "keys": {
+    "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb": {
+      "key": "z6MkvHf9bZspePFwKc6M4HuFtwadBkRQBNikHs7N3uzmbf5Z",
+      "kid": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb#key-0"
+    },
+    "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T": {
+      "key": "z6MkrdZrP4Kps8eoHp8anKyWdLkv8sT2sGJVJGPKHpLQRxBS",
+      "kid": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T#key-0"
+    },
+    "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA": {
+      "key": "z6Mkt9om5ysqbU6xUVesYJHJBvwuQTxXtwHsbUCeiPmF8hFP",
+      "kid": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA#key-0"
+    },
+    "did:agent:QmVUEAAn4NDvfrDGBGFCMqfp37KvZBpYSpsnCZTMNf6jmC": {
+      "key": "z6MkhgjjdrHTp3P6yZcDtvHuspG5ZuRt71pGc7KC3m2oQ6jT",
+      "kid": "did:agent:QmVUEAAn4NDvfrDGBGFCMqfp37KvZBpYSpsnCZTMNf6jmC#key-0"
+    },
+    "did:agent:QmXSUsoYuF5RhdRFT41zNcEcEWu7pNx889eCeyrC1aBn4V": {
+      "key": "z6Mknq5dNEBVPgWnMTZ1Q7RyETaMHXd66zH9aSQmXztB4nkf",
+      "kid": "did:agent:QmXSUsoYuF5RhdRFT41zNcEcEWu7pNx889eCeyrC1aBn4V#key-1"
+    }
+  },
+  "root_policy": {
+    "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb": [
+      "tools.*",
+      "pay.*",
+      "files.*"
+    ],
+    "did:agent:QmXSUsoYuF5RhdRFT41zNcEcEWu7pNx889eCeyrC1aBn4V": [
+      "tools.*"
+    ]
+  },
+  "cases": [
+    {
+      "name": "root_grant",
+      "description": "a principal's grant used by its subject",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": true,
+        "principal": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+        "via": [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T"
+        ],
+        "scopes": [
+          "tools.search"
+        ],
+        "grant_ids": [
+          "PGxLpMBTVmJ9vgA5oEZ1xA"
+        ],
+        "leaf_limits": null
+      }
+    },
+    {
+      "name": "delegated_chain",
+      "description": "two links with narrowing limits",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJUUUNOa2I4M1pIc3ZWdWJGcUUzQU9BIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvd2Vic2l0ZSJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6MTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoyMH0sIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.jXUkOtcGeFBdi6yiVO_MYEPfDkTMgfDQT4E28laSYciW1lcEsXhmnPSK2wsn-ciXs6i0tKI5gimnD1e09PVbAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": true,
+        "principal": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+        "via": [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+          "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA"
+        ],
+        "scopes": [
+          "tools.search"
+        ],
+        "grant_ids": [
+          "ANHByfC8xYxD5tCxxpzjyA",
+          "TQCNkb83ZHsvVubFqE3AOA"
+        ],
+        "leaf_limits": {
+          "rate": {
+            "count": 10,
+            "per": 60
+          },
+          "resources": [
+            "repo:acme/website"
+          ],
+          "spend": {
+            "per_call": 500,
+            "total": 1000,
+            "unit": "USD-cents"
+          },
+          "uses": 20
+        }
+      }
+    },
+    {
+      "name": "wildcard_audience",
+      "description": "audience '*' covers any service",
+      "header": "eyJhdWQiOlsiKiJdLCJkZXB0aCI6MCwiZXhwIjoxODAwMDAwOTAwLCJpZCI6Imc3cHJlVXY4b2F3QU9RWVBhYm1TZUEiLCJpc3MiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiIsImtpZCI6ImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiI2tleS0wIiwibmJmIjoxODAwMDAwMDAwLCJwYXJlbnQiOm51bGwsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.yNrZictz7dIfwa6ttVnNOdM0EDecxZlr58gBzq_tg-bbpyvfDmy2dZJfoaM1RrSielWobcDaRBYRDYGcOST1Cw",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": true,
+        "principal": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+        "via": [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T"
+        ],
+        "scopes": [
+          "tools.search"
+        ],
+        "grant_ids": [
+          "g7preUv8oawAOQYPabmSeA"
+        ],
+        "leaf_limits": null
+      }
+    },
+    {
+      "name": "audience_case_insensitive",
+      "description": "audiences compare case-insensitively",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "Tools.Example.COM",
+      "revoked": [],
+      "expect": {
+        "valid": true,
+        "principal": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+        "via": [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T"
+        ],
+        "scopes": [
+          "tools.search"
+        ],
+        "grant_ids": [
+          "PGxLpMBTVmJ9vgA5oEZ1xA"
+        ],
+        "leaf_limits": null
+      }
+    },
+    {
+      "name": "clock_skew_grace",
+      "description": "still valid 59 s after exp (60 s grace)",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000959,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": true,
+        "principal": "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+        "via": [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T"
+        ],
+        "scopes": [
+          "tools.search"
+        ],
+        "grant_ids": [
+          "PGxLpMBTVmJ9vgA5oEZ1xA"
+        ],
+        "leaf_limits": null
+      }
+    },
+    {
+      "name": "no_grant",
+      "description": "empty header",
+      "header": "",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 401
+      }
+    },
+    {
+      "name": "untrusted_root",
+      "description": "root issuer not in the policy",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJ1Y2FPNmRudjJzWXBtZklLcDhzblVnIiwiaXNzIjoiZGlkOmFnZW50OlFtVlVFQUFuNE5EdmZyREdCR0ZDTXFmcDM3S3ZaQnBZU3BzbkNaVE1OZjZqbUMiLCJraWQiOiJkaWQ6YWdlbnQ6UW1WVUVBQW40TkR2ZnJER0JHRkNNcWZwMzdLdlpCcFlTcHNuQ1pUTU5mNmptQyNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.vPgp3_BKfLzGbfcvrqNnJji-ZC4MOzbZXAV-gILBglypyn1Y1PS0E8Kk5Jzxbsyt-WwfSFmiC2cvXJ-gEQmJCw",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "root_exceeds_policy",
+      "description": "principal grants a scope the policy doesn't allow it",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJ1cGlzYzZIOEtmS3duUUJBTExGNjdnIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJhZG1pbi4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.Q7Bo1jSlXu48W7oGedUGLXvBfF9K7O-D1oXh_w_p92tHj3kaMYXxkxsAZ4MPK_OSPZyIzcuYHJJ8zqwSlVl1CA",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "wrong_requester",
+      "description": "grant used by someone other than its subject",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmVUEAAn4NDvfrDGBGFCMqfp37KvZBpYSpsnCZTMNf6jmC",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "wrong_audience",
+      "description": "grant for a different service",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "other.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "expired",
+      "description": "61 s past exp",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000961,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "not_yet_valid",
+      "description": "61 s before nbf",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1799999939,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "revoked_root",
+      "description": "root revoked by its issuer",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJUUUNOa2I4M1pIc3ZWdWJGcUUzQU9BIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvd2Vic2l0ZSJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6MTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoyMH0sIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.jXUkOtcGeFBdi6yiVO_MYEPfDkTMgfDQT4E28laSYciW1lcEsXhmnPSK2wsn-ciXs6i0tKI5gimnD1e09PVbAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [
+        [
+          "did:agent:QmPYE3dTjuikRfzUz1mRb4qcsDnY9TdAXz6ceiaghvJ7Hb",
+          "ANHByfC8xYxD5tCxxpzjyA"
+        ]
+      ],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "revoked_leaf",
+      "description": "leaf revoked by its issuer",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJUUUNOa2I4M1pIc3ZWdWJGcUUzQU9BIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvd2Vic2l0ZSJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6MTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoyMH0sIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.jXUkOtcGeFBdi6yiVO_MYEPfDkTMgfDQT4E28laSYciW1lcEsXhmnPSK2wsn-ciXs6i0tKI5gimnD1e09PVbAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [
+        [
+          "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+          "TQCNkb83ZHsvVubFqE3AOA"
+        ]
+      ],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "stale_issuer_key",
+      "description": "issued under key-0, issuer has rotated to key-1",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiI2Tk9lNDdQdUdGQzQ2ZVZVNlIwTkpnIiwiaXNzIjoiZGlkOmFnZW50OlFtWFNVc29ZdUY1UmhkUkZUNDF6TmNFY0VXdTdwTng4ODllQ2V5ckMxYUJuNFYiLCJraWQiOiJkaWQ6YWdlbnQ6UW1YU1Vzb1l1RjVSaGRSRlQ0MXpOY0VjRVd1N3BOeDg4OWVDZXlyQzFhQm40ViNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.WmQhba1KbB0qvdiFtVlILO6C8-uD1E5m1kpGP4bJ71A5_epmHwVvNnWtdMBHd5jP8TDHK2PjpPWu96qfq7KhCA",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "widened_scope",
+      "description": "child claims a scope its parent lacks",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJhZG1pbi53aXBlIl0sInN1YiI6ImRpZDphZ2VudDpRbVNaNG5COUE0bWRlZEtDZzVlN3lWdDg2UFg5RUxXQVNLRU0xWjg1TWJwaVBBIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.6hrx0CnrkVHjIWbFA1dzKMKqzQ0_sAlcxfiqxVEdYdbLXW7MKmkyVN5p9cll5ShYvQGvpt9LLxWcYwl5BO5JAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "widened_audience",
+      "description": "child adds an audience",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iLCJldmlsLmV4YW1wbGUuY29tIl0sImRlcHRoIjowLCJleHAiOjE4MDAwMDA5MDAsImlkIjoiZm9yZ2VkLWxpbmstMDAwMDAwMDAwMSIsImlzcyI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwia2lkIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQja2V5LTAiLCJsaW1pdHMiOnsicmF0ZSI6eyJjb3VudCI6MTAsInBlciI6NjB9LCJyZXNvdXJjZXMiOlsicmVwbzphY21lLyoiXSwic3BlbmQiOnsicGVyX2NhbGwiOjUwMCwidG90YWwiOjUwMDAsInVuaXQiOiJVU0QtY2VudHMifSwidXNlcyI6MTAwfSwibmJmIjoxODAwMDAwMDAwLCJwYXJlbnQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwic2NvcGUiOlsidG9vbHMuc2VhcmNoIl0sInN1YiI6ImRpZDphZ2VudDpRbVNaNG5COUE0bWRlZEtDZzVlN3lWdDg2UFg5RUxXQVNLRU0xWjg1TWJwaVBBIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.UFUoEY1B9wjdD_JFqHxFc64EfTdYyVJZXIPbJh5BWY5-tHd4javH3Y7Nsc9d-EJD35ixfq3JbadaZS94zd0YBw",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "outlives_parent",
+      "description": "child exp after parent exp",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkxMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtU1o0bkI5QTRtZGVkS0NnNWU3eVZ0ODZQWDlFTFdBU0tFTTFaODVNYnBpUEEiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.5XHJ3MyBWHrgH9-arAeku-aotKZenP5IZL0VW5W_zZT0sabEroaZ_tC__jylGc4b-6rFLK5L8f_Bo2QtHWheBQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "depth_exceeded",
+      "description": "parent depth 0 but a child exists",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiUEd4THBNQlRWbUo5dmdBNW9FWjF4QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.wxMTlzc44PxVZ7QOhuWWMMwUK0wmgqeVP-fctaT3baHdRBziR2Ao1TFNPIYQGC74CiGiukstl6iE-o354aGgBA",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "dropped_limits",
+      "description": "child omits the parent's limits",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.lZPmo_LWuX3j1U1E2E171h_1J5_YGctT8otLEXUgDxZmtXXAiFXI-_w2TFH1HTXM5sarT7zgefQbzs7FeHiEDg",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "loosened_budget",
+      "description": "child raises spend.total above the parent's",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6OTk5OSwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtU1o0bkI5QTRtZGVkS0NnNWU3eVZ0ODZQWDlFTFdBU0tFTTFaODVNYnBpUEEiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.07qZ1vMdbitzIePd8kW4LEnx7icC_gRUNzzv4DlmltUUzQEnin4QBKAazuJ4et5tGmWaAIJHKxw9_ycKrRCQCw",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "unknown_field",
+      "description": "a field verifiers don't understand",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiY29uc3RyYWludHMiOnsiZ2VvIjoiRVUifSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtU1o0bkI5QTRtZGVkS0NnNWU3eVZ0ODZQWDlFTFdBU0tFTTFaODVNYnBpUEEiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.qmHenA68WlQR7ZBYgucFnQhUuEdw6rBewopW4LDyUzvlDENPMmpxKqrehO9VN1EtYocJihWiGODnMJ8lpZxtCA",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "unknown_limit",
+      "description": "an unknown limit kind",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJnZW8iOiJFVSIsInJhdGUiOnsiY291bnQiOjEwLCJwZXIiOjYwfSwicmVzb3VyY2VzIjpbInJlcG86YWNtZS8qIl0sInNwZW5kIjp7InBlcl9jYWxsIjo1MDAsInRvdGFsIjo1MDAwLCJ1bml0IjoiVVNELWNlbnRzIn0sInVzZXMiOjEwMH0sIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.kZy8jtKOQ8O03ACcm2m_LQ6W2jlerfpKMnoYYeh8mm4WiN7JQ6UOHrQyea-EvwkS4gzmnIySpFkDwijDv8SeAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "wrong_parent_id",
+      "description": "child references a different parent",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6Im5vdC10aGUtcGFyZW50LTAwMDAwIiwic2NvcGUiOlsidG9vbHMuc2VhcmNoIl0sInN1YiI6ImRpZDphZ2VudDpRbVNaNG5COUE0bWRlZEtDZzVlN3lWdDg2UFg5RUxXQVNLRU0xWjg1TWJwaVBBIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.JI4_PuD4HFoBpnXk_AcfkiixAFt_T1FBXOGH53Ms7jgWkNsjscKBXIioYEyJk3o21-NEjmrmEFdP4ej9ur8nAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "issuer_not_parent_subject",
+      "description": "child issued by someone other than the parent's subject",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtVlVFQUFuNE5EdmZyREdCR0ZDTXFmcDM3S3ZaQnBZU3BzbkNaVE1OZjZqbUMiLCJraWQiOiJkaWQ6YWdlbnQ6UW1WVUVBQW40TkR2ZnJER0JHRkNNcWZwMzdLdlpCcFlTcHNuQ1pUTU5mNmptQyNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtU1o0bkI5QTRtZGVkS0NnNWU3eVZ0ODZQWDlFTFdBU0tFTTFaODVNYnBpUEEiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.prX3EU9bAiTf3r7cb-e4IeqFjenBchAElU7tgeF6OIN9uUdrxvzjyJiVj-Epjk0mv_2mRHjszIDcTFhlhMdWBw",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "self_issued",
+      "description": "a link issued to its own issuer",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJmb3JnZWQtbGluay0wMDAwMDAwMDAxIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6IkFOSEJ5ZkM4eFl4RDV0Q3h4cHpqeUEiLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.hCaMuhJxltvoxh5R-MH3ozSPdYnN0OSiZ3hif1e3eBkxHM-yfLdAxow8Wqf3p3NvhCoFETvPaJoBc4f5JHlhBA",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "tampered_body",
+      "description": "scope edited without re-signing",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "signature_padded",
+      "description": "padded signature encoding",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg=",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "missing_root",
+      "description": "chain without its root link",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJUUUNOa2I4M1pIc3ZWdWJGcUUzQU9BIiwiaXNzIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJraWQiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvd2Vic2l0ZSJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6MTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoyMH0sIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjoiQU5IQnlmQzh4WXhENXRDeHhwemp5QSIsInNjb3BlIjpbInRvb2xzLnNlYXJjaCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1TWjRuQjlBNG1kZWRLQ2c1ZTd5VnQ4NlBYOUVMV0FTS0VNMVo4NU1icGlQQSIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.jXUkOtcGeFBdi6yiVO_MYEPfDkTMgfDQT4E28laSYciW1lcEsXhmnPSK2wsn-ciXs6i0tKI5gimnD1e09PVbAQ",
+      "requester": "did:agent:QmSZ4nB9A4mdedKCg5e7yVt86PX9ELWASKEM1Z85MbpiPA",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "duplicate_link",
+      "description": "the same link twice",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjEsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJBTkhCeWZDOHhZeEQ1dEN4eHB6anlBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsImxpbWl0cyI6eyJyYXRlIjp7ImNvdW50IjoxMCwicGVyIjo2MH0sInJlc291cmNlcyI6WyJyZXBvOmFjbWUvKiJdLCJzcGVuZCI6eyJwZXJfY2FsbCI6NTAwLCJ0b3RhbCI6NTAwMCwidW5pdCI6IlVTRC1jZW50cyJ9LCJ1c2VzIjoxMDB9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsicGF5LioiLCJ0b29scy4qIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.8BmzPJH5mIZ04dAwYOry9bnx1PlBAtx5LMmaqncdqbuQyvJzML1q4yaIVFcjsm_DXbghQjasUbiDYLIoIRpeAg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "malformed",
+      "description": "not base64url JSON",
+      "header": "%%%.%%%",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "name": "too_many_links",
+      "description": "nine links",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg,eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "float_in_body",
+      "description": "nbf as a float",
+      "header": "eyJ2IjogImFnZW50YXV0aC1ncmFudC8xIiwgImlkIjogIlBHeExwTUJUVm1KOXZnQTVvRVoxeEEiLCAiaXNzIjogImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiIiwgImtpZCI6ICJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsICJzdWIiOiAiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCAic2NvcGUiOiBbInRvb2xzLnNlYXJjaCJdLCAiYXVkIjogWyJ0b29scy5leGFtcGxlLmNvbSJdLCAibmJmIjogMTgwMDAwMDAwMC4wLCAiZXhwIjogMTgwMDAwMDkwMCwgImRlcHRoIjogMCwgInBhcmVudCI6IG51bGx9.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "name": "noncanonical_payload",
+      "description": "payload JSON with whitespace (valid signature over the canonical form)",
+      "header": "eyJ2IjogImFnZW50YXV0aC1ncmFudC8xIiwgImlkIjogIlBHeExwTUJUVm1KOXZnQTVvRVoxeEEiLCAiaXNzIjogImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiIiwgImtpZCI6ICJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsICJzdWIiOiAiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCAic2NvcGUiOiBbInRvb2xzLnNlYXJjaCJdLCAiYXVkIjogWyJ0b29scy5leGFtcGxlLmNvbSJdLCAibmJmIjogMTgwMDAwMDAwMCwgImV4cCI6IDE4MDAwMDA5MDAsICJkZXB0aCI6IDAsICJwYXJlbnQiOiBudWxsfQ.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "name": "duplicate_key",
+      "description": "payload with a second 'sub' key",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEiLCJzdWIiOiJkaWQ6YWdlbnQ6UW1WVUVBQW40TkR2ZnJER0JHRkNNcWZwMzdLdlpCcFlTcHNuQ1pUTU5mNmptQyJ9.ZC_vfp16le5PSxg3Uhy6D1mKL5wxSDZ1kbLYm0eQRlOm2IX1gqfyLOSCnBwRXsoli8cbpVKF6RWcDDGqbRcFBg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 400
+      }
+    },
+    {
+      "name": "unsorted_audience",
+      "description": "aud not in sorted order (signed)",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iLCJhLmV4YW1wbGUuY29tIl0sImRlcHRoIjowLCJleHAiOjE4MDAwMDA5MDAsImlkIjoiUEd4THBNQlRWbUo5dmdBNW9FWjF4QSIsImlzcyI6ImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiIiwia2lkIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIja2V5LTAiLCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsidG9vbHMuc2VhcmNoIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.nb0FN30d0hAVU6TfCRRcCznAGCwrqld9dbeYEHn7sjL8uNqWyulqlm-liDbrQfwVfdzwTCGkp8sTyKq78vHfCQ",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "uppercase_audience",
+      "description": "aud not lower-cased (signed)",
+      "header": "eyJhdWQiOlsiVG9vbHMuRXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giXSwic3ViIjoiZGlkOmFnZW50OlFtV2hzR05EZ0s0TTlHak1xNmlmaFFpNE5pMVg5REJwOEtBY1ZteXZSNGVCNVQiLCJ2IjoiYWdlbnRhdXRoLWdyYW50LzEifQ.e2UnsJELFdt3fll5KDVm_iQiyGcvSzvTG7_w2z0YmWx20x9qYHdny1TZsRmP3JQWotqE9JXz1glPp8fBdEpDDQ",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "unsorted_scope",
+      "description": "scope not in sorted order (signed)",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXBsZS5jb20iXSwiZGVwdGgiOjAsImV4cCI6MTgwMDAwMDkwMCwiaWQiOiJQR3hMcE1CVFZtSjl2Z0E1b0VaMXhBIiwiaXNzIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIiLCJraWQiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiNrZXktMCIsIm5iZiI6MTgwMDAwMDAwMCwicGFyZW50IjpudWxsLCJzY29wZSI6WyJ0b29scy5zZWFyY2giLCJwYXkueCJdLCJzdWIiOiJkaWQ6YWdlbnQ6UW1XaHNHTkRnSzRNOUdqTXE2aWZoUWk0TmkxWDlEQnA4S0FjVm15dlI0ZUI1VCIsInYiOiJhZ2VudGF1dGgtZ3JhbnQvMSJ9.oHpVgj9i6jBEY6jnuEqCTA_F69o_jOrkLaUGcfMI8dqSLVqXDAQ0JOW2enYY7m0C0b0uvIo1rsTXhVBjV5HlCg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "non_ascii_audience",
+      "description": "aud with a non-ASCII character (signed)",
+      "header": "eyJhdWQiOlsidG9vbHMuZXhhbXDEsGUuY29tIl0sImRlcHRoIjowLCJleHAiOjE4MDAwMDA5MDAsImlkIjoiUEd4THBNQlRWbUo5dmdBNW9FWjF4QSIsImlzcyI6ImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiIiwia2lkIjoiZGlkOmFnZW50OlFtUFlFM2RUanVpa1JmelV6MW1SYjRxY3NEblk5VGRBWHo2Y2VpYWdodko3SGIja2V5LTAiLCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsidG9vbHMuc2VhcmNoIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.MB6aiEyNmJnxXqgwVanU5sRiInKQvr51OQtebEK7s-p5RPA_6PstCfzaQsVlEMjrRrpZVyRZMNLFAYV0TZ2gCQ",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    },
+    {
+      "name": "stateful_wildcard_audience",
+      "description": "a use limit on audience '*' (signed)",
+      "header": "eyJhdWQiOlsiKiJdLCJkZXB0aCI6MCwiZXhwIjoxODAwMDAwOTAwLCJpZCI6IlBHeExwTUJUVm1KOXZnQTVvRVoxeEEiLCJpc3MiOiJkaWQ6YWdlbnQ6UW1QWUUzZFRqdWlrUmZ6VXoxbVJiNHFjc0RuWTlUZEFYejZjZWlhZ2h2SjdIYiIsImtpZCI6ImRpZDphZ2VudDpRbVBZRTNkVGp1aWtSZnpVejFtUmI0cWNzRG5ZOVRkQVh6NmNlaWFnaHZKN0hiI2tleS0wIiwibGltaXRzIjp7InVzZXMiOjV9LCJuYmYiOjE4MDAwMDAwMDAsInBhcmVudCI6bnVsbCwic2NvcGUiOlsidG9vbHMuc2VhcmNoIl0sInN1YiI6ImRpZDphZ2VudDpRbVdoc0dORGdLNE05R2pNcTZpZmhRaTROaTFYOURCcDhLQWNWbXl2UjRlQjVUIiwidiI6ImFnZW50YXV0aC1ncmFudC8xIn0.t7D4V0E0E72m__aGOHBN33L0c3eO7V9oGwMtxan9dqG6ksrQNgEj1gaWPR4-wFy52JNnYXDjXHytIptM3-_LCg",
+      "requester": "did:agent:QmWhsGNDgK4M9GjMq6ifhQi4Ni1X9DBp8KAcVmyvR4eB5T",
+      "now": 1800000000,
+      "audience": "tools.example.com",
+      "revoked": [],
+      "expect": {
+        "valid": false,
+        "status": 403
+      }
+    }
+  ],
+  "scope_covers": [
+    {
+      "parent": "*",
+      "child": "a.b",
+      "covers": true
+    },
+    {
+      "parent": "tools.*",
+      "child": "tools.search",
+      "covers": true
+    },
+    {
+      "parent": "tools.*",
+      "child": "tools.web.fetch",
+      "covers": true
+    },
+    {
+      "parent": "tools.*",
+      "child": "tools.*",
+      "covers": true
+    },
+    {
+      "parent": "tools.*",
+      "child": "tools",
+      "covers": false
+    },
+    {
+      "parent": "tools.*",
+      "child": "toolsX.search",
+      "covers": false
+    },
+    {
+      "parent": "tools.search",
+      "child": "tools.search",
+      "covers": true
+    },
+    {
+      "parent": "tools.search",
+      "child": "tools.*",
+      "covers": false
+    },
+    {
+      "parent": "tools.search",
+      "child": "*",
+      "covers": false
+    }
+  ],
+  "audience_covers": [
+    {
+      "parents": [
+        "*"
+      ],
+      "children": [
+        "x.example"
+      ],
+      "covers": true
+    },
+    {
+      "parents": [
+        "a.example"
+      ],
+      "children": [
+        "A.EXAMPLE"
+      ],
+      "covers": true
+    },
+    {
+      "parents": [
+        "a.example"
+      ],
+      "children": [
+        "b.example"
+      ],
+      "covers": false
+    },
+    {
+      "parents": [
+        "a.example",
+        "b.example"
+      ],
+      "children": [
+        "b.example"
+      ],
+      "covers": true
+    }
+  ]
+}

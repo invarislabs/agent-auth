@@ -3,10 +3,12 @@
 #   docker build -t agentauth-registry .
 #   docker run -p 8000:8000 -e AGENTAUTH_AUDIENCES=localhost:8000 -v agentauth-data:/data agentauth-registry
 #
-# Dependencies are installed from deploy/requirements.lock with hash checking,
-# so a rebuild of the same commit installs exactly the same packages.
+# Dependencies (and the setuptools build backend) are installed from
+# deploy/requirements.lock with hash checking, and the package itself is built
+# with --no-build-isolation --no-index, so nothing unhashed is downloaded and a
+# rebuild of the same commit installs exactly the same packages.
 # For fully reproducible builds also pin the base image by digest
-# (python:3.12-slim-bookworm@sha256:...); Dependabot keeps it current.
+# (python:3.15-slim-bookworm@sha256:...); Dependabot keeps it current.
 
 FROM python:3.15-slim-bookworm AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -16,7 +18,7 @@ RUN python -m venv /opt/agentauth \
  && /opt/agentauth/bin/pip install --require-hashes -r deploy/requirements.lock
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY agentauth ./agentauth
-RUN /opt/agentauth/bin/pip install --no-deps .
+RUN /opt/agentauth/bin/pip install --no-deps --no-build-isolation --no-index .
 
 FROM python:3.15-slim-bookworm
 LABEL org.opencontainers.image.title="AgentAuth registry" \

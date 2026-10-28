@@ -9,7 +9,7 @@ import pytest
 from conftest import new_agent
 
 from agentauth import AgentIdentity, KeyPair, RegistryError, Signer
-from agentauth.crypto import b64u
+from agentauth.crypto import b64u, key_commitment
 from agentauth.keystore import (
     FORMAT,
     InsecureKeyFileWarning,
@@ -56,7 +56,7 @@ def test_crash_after_submit_is_recoverable(registry, tmp_path):
     assert reg.whoami(again)["kid"].endswith("#key-2")
 
 
-def test_crash_before_submit_retries_with_same_key(registry, tmp_path):
+def test_crash_before_submit_retries_with_same_authenticated_key(registry, tmp_path):
     reg, _ = registry
     agent = new_agent(reg, name="b")
     agent.save(tmp_path, "b", passphrase="pw")
@@ -74,8 +74,12 @@ def test_crash_before_submit_retries_with_same_key(registry, tmp_path):
 
     resumed = AgentIdentity.load(tmp_path, "b", passphrase="pw")
     resumed.rotate_and_save(reg, tmp_path, "b", passphrase="pw")
-    assert reg.verified_state(agent.did).next is not None
-    assert resumed.recovery_key.public_multikey == pending_pub  # the saved key was used, not a new one
+    remote = reg.verified_state(agent.did)
+    assert remote.next == key_commitment(resumed.recovery_key.public_multikey)
+    # The pending file was encrypted (v2) under the identity's passphrase, so it is authentic
+    # and the same key is reused: if the registry had committed to it, nothing is lost.
+    assert resumed.recovery_key.public_multikey == pending_pub
+    assert not (tmp_path / "b.pending.json").exists()
 
 
 def test_commit_refuses_state_without_the_event(registry):
