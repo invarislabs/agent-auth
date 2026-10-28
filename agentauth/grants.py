@@ -186,6 +186,19 @@ class GrantChain:
         ]
 
 
+def new_grant_id() -> str:
+    """A random grant id (128 bits, base64url) that never starts with "-".
+
+    Any id matching the protocol's format is valid; avoiding a leading "-"
+    just keeps ids usable as command-line arguments (`agentauth revoke`)
+    without a `--` separator.
+    """
+    while True:
+        gid = secrets.token_urlsafe(16)
+        if not gid.startswith("-"):
+            return gid
+
+
 def issue(
     *,
     issuer_did: str,
@@ -250,7 +263,7 @@ def issue(
 
     body = {
         "v": VERSION,
-        "id": secrets.token_urlsafe(16),
+        "id": new_grant_id(),
         "iss": issuer_did,
         "kid": issuer_kid,
         "sub": subject,

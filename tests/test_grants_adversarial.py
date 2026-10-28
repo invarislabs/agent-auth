@@ -277,3 +277,14 @@ def test_revocation_signature_must_be_canonical(w):
     with pytest.raises(GrantError):
         verify_revocation(ev, w["human"].current_key.public_multikey)
     assert b64u(b"x")  # keep import used
+
+
+def test_new_grant_ids_never_start_with_dash(monkeypatch):
+    """A leading '-' would make ids look like CLI options (this made CI flaky)."""
+    import agentauth.grants as grants
+
+    draws = iter(["-starts-with-dash-000", "-another-dash-000000", "fine-id-000000000000"])
+    monkeypatch.setattr(grants.secrets, "token_urlsafe", lambda n: next(draws))
+    assert grants.new_grant_id() == "fine-id-000000000000"
+    monkeypatch.undo()
+    assert not any(grants.new_grant_id().startswith("-") for _ in range(5000))
