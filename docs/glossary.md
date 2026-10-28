@@ -12,9 +12,13 @@
 
 **Audit log.** A service's hash-chained, optionally signed record of authorization decisions.
 
+**Canonical payload.** A grant link's base64url payload must be exactly the canonical JSON of its body (no extra whitespace, duplicate keys or floats), so every implementation reads the same values from it.
+
 **Chain.** An ordered list of grants from a principal down to the agent making the request. Each link is issued by the previous link's subject.
 
 **Controller.** An identity (usually a human or org) named in an agent's inception event. It countersigns the agent's creation, can list the agents it controls, and can deactivate them.
+
+**Controller key binding.** The rule that a controller's signature only counts if its key appears in the controller's own verified key event log. Clients replaying logs enforce it; a signature check alone isn't enough.
 
 **Current key.** The key an identity signs with right now. It's identified by its `kid`.
 
@@ -71,6 +75,8 @@
 **Signer.** Anything that can produce Ed25519 signatures for a public key: an in-process `KeyPair`, or an adapter for an HSM or KMS.
 
 **Subject (`sub`).** The identity a grant is issued to.
+
+**Test vectors.** The deterministic cases in `test-vectors/`, generated from the Python reference, that every implementation must pass with exactly the recorded outcomes.
 
 **Usage ledger.** The service-side record of spend, call rate and use counts for each grant.
 

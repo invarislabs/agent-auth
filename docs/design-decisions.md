@@ -122,7 +122,7 @@ Short records of the choices that shaped AgentAuth: what was decided, why, and w
 
 **Why.** Much agent tooling is written in Python, and FastAPI's dependency injection maps directly onto "authenticate, authorize, enforce limits".
 
-**Cost.** Node/TypeScript agent ecosystems need a port. That's on the [roadmap](roadmap.md), and the [protocol spec](protocol.md) is the contract a port has to follow.
+**Cost.** Other ecosystems need a port. A TypeScript verifier now exists (`ts/`, see DD-19); signing and issuing from TypeScript are on the [roadmap](roadmap.md). The [protocol spec](protocol.md) and the shared test vectors are the contract a port has to follow.
 
 ---
 
@@ -183,3 +183,25 @@ Short records of the choices that shaped AgentAuth: what was decided, why, and w
 **Why.** In v0.3, a crash between the registry accepting a rotation and the SDK saving the new keys lost the new recovery key, leaving an identity that could never rotate or self-deactivate again.
 
 **Cost.** One more file to protect (it's a recovery key) during the rotation window.
+
+**Revised after the October 2026 review.** A pending key the registry hasn't committed to is reused only if its file is authenticated: encrypted with the identity's passphrase in the v2 format, which binds it to this DID and role. Otherwise the file is moved aside and a fresh key is used. Without this, anyone able to write to the recovery directory could plant a pending file and choose the identity's next key.
+
+---
+
+### DD-18: One encoding per grant (canonical payloads, ASCII audiences and scopes)
+
+**Decision.** A grant's payload must be exactly `canonical_json(body)`, byte for byte. `aud` and `scope` must already be sorted and de-duplicated, with `aud` lower-cased, and both are printable ASCII. Stateful limits can't be combined with audience `"*"`.
+
+**Why.** The October 2026 review found that the same signed token could be read differently by different JSON parsers: a duplicate `sub` key (Python keeps the last one), `1.0` versus `1`, or Unicode case folding of audiences, which differs between languages. With a second implementation (TypeScript), any such ambiguity becomes a way to make two verifiers disagree. Allowing exactly one encoding removes the whole class. Stateful limits on `"*"` would be enforced once per service, since every service keeps its own ledger, so they multiply instead of limiting.
+
+**Cost.** Grants with non-ASCII audiences or scopes, or with budgets on `"*"`, must be re-issued. Grants from the reference SDK were already canonical.
+
+---
+
+### DD-19: A second implementation held to shared test vectors
+
+**Decision.** The TypeScript verifier is a check-for-check port of the Python verifier. Both run the same deterministic test vectors (`test-vectors/`), which are generated from the Python code; CI fails if they're stale. Where the protocol depends on string semantics, TypeScript reproduces Python's (`str.isspace()`, code-point ordering).
+
+**Why.** A protocol is only as precise as its least careful implementation. Generating the vectors from the reference, and checking that the generator's expectations hold before writing them, keeps the spec, the reference and the port from drifting apart. Porting itself surfaced three differences (number parsing, whitespace, sort order) that are now pinned down by vectors.
+
+**Cost.** Changing a verification rule means regenerating the vectors and updating both implementations in the same change.
