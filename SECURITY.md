@@ -10,8 +10,12 @@ Include what you found, how to reproduce it, and the impact you expect. We'll ac
 
 | Version | Supported |
 |---|---|
-| 0.4.x | ✅ security fixes |
+| 0.4.x (latest: 0.4.0, released 2026-10-28) | ✅ security fixes |
 | < 0.4 | ❌ please upgrade (see [CHANGELOG](CHANGELOG.md) for the fixes in 0.4.0) |
+
+Releases are published on PyPI as [`invaris-agentauth`](https://pypi.org/project/invaris-agentauth/) and as the registry image `ghcr.io/invarislabs/agent-auth`. To pick up security fixes, upgrade the package (`pip install -U invaris-agentauth`) and pull the newest image tag. Fixes are announced in the [changelog](CHANGELOG.md) and in GitHub security advisories.
+
+Only install from those two places. The PyPI project named `agentauth` is unrelated to this one.
 
 ## Audit status
 
@@ -23,4 +27,4 @@ AgentAuth has **not** had an independent security audit.
 
 ## Scope
 
-In scope: the protocol (docs/protocol.md), the Python package, the TypeScript verifier (`ts/`), the shared test vectors, the registry, the Docker image and the deployment configuration in this repository. Known limitations are listed in the threat model; reports showing they're worse than described are welcome.
+In scope: the protocol (docs/protocol.md), the Python package (including the published `invaris-agentauth` distribution and the release workflow that builds it), the TypeScript verifier (`ts/`), the shared test vectors, the registry, the Docker image (including the published `ghcr.io/invarislabs/agent-auth` image) and the deployment configuration in this repository. Known limitations are listed in the threat model; reports showing they're worse than described are welcome.
