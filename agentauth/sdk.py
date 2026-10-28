@@ -28,7 +28,7 @@ from .identity import (
     verify_inception,
     verify_log,
 )
-from .keystore import read_key_file, remove_key_file, write_key_file
+from .keystore import ENC_V2, read_key_file, remove_key_file, write_key_file
 from .limits import Limits
 from .witness import EquivocationError, KelPins
 
@@ -61,6 +61,7 @@ class AgentIdentity:
         self.recovery_key = recovery_key
         self._pending: Optional[tuple] = None
         self.pending_next_key: Optional[Signer] = None  # loaded from <name>.pending.json, see rotate_and_save
+        self._pending_authenticated = False  # was that file encrypted (v2) under this identity's passphrase?
 
     # -- creation ---------------------------------------------------------- #
 
@@ -203,14 +204,24 @@ class AgentIdentity:
         r = Path(recovery_dir).expanduser() if recovery_dir else d
         return d / f"{name}.key.json", r / f"{name}.recovery.json", r / f"{name}.pending.json"
 
-    def save(self, directory: Path, name: str, passphrase: Optional[str] = None, recovery_dir: Optional[Path] = None):
+    def save(self, directory: Path, name: str, passphrase: Optional[str] = None, recovery_dir: Optional[Path] = None,
+             *, overwrite: bool = True):
+        """Write the key files. Pass ``overwrite=False`` when creating a new identity: an
+        existing key or recovery file is then never replaced (FileExistsError), so a typo'd
+        name can't destroy another identity's only recovery key."""
         passphrase = passphrase if passphrase is not None else _default_passphrase()
-        key_path, rec_path, _ = self._paths(directory, name, recovery_dir)
+        key_path, rec_path, pending_path = self._paths(directory, name, recovery_dir)
+        if not overwrite:
+            for p in (key_path, rec_path, pending_path):
+                if p.exists():
+                    raise FileExistsError(f"{p} already exists")
         extra = {"state": dataclasses.asdict(self.state)}
         # Order matters for crash recovery (see rotate_and_save): current key first, then recovery.
-        write_key_file(key_path, did=self.did, role="current", key=self.current_key, extra=extra, passphrase=passphrase)
+        write_key_file(key_path, did=self.did, role="current", key=self.current_key, extra=extra,
+                       passphrase=passphrase, overwrite=overwrite)
         if self.recovery_key is not None:
-            write_key_file(rec_path, did=self.did, role="recovery", key=self.recovery_key, extra={}, passphrase=passphrase)
+            write_key_file(rec_path, did=self.did, role="recovery", key=self.recovery_key, extra={},
+                           passphrase=passphrase, overwrite=overwrite)
 
     @classmethod
     def load(cls, directory: Path, name: str, passphrase: Optional[str] = None, recovery_dir: Optional[Path] = None):
@@ -235,6 +246,7 @@ class AgentIdentity:
             if pdoc["did"] != state.did or pdoc.get("role") != "pending-next":
                 raise ValueError("pending rotation file belongs to a different DID")
             ident.pending_next_key = pending
+            ident._pending_authenticated = (pdoc.get("secret") or {}).get("enc") == ENC_V2
             log.warning("%s has an unfinished rotation; run rotate again to complete it", name)
         return ident
 
@@ -257,6 +269,22 @@ class AgentIdentity:
         If the process dies anywhere in between, calling this again resumes:
         it checks whether the registry already applied the rotation and
         finishes it with the saved pending key instead of generating a new one.
+
+        If the registry's verified log already commits to the pending key, the
+        rotation is completed with it. If not (the rotation apparently never
+        reached the registry), the pending key is reused only when it was read
+        from an authenticated file: one encrypted with this identity's
+        passphrase in the v2 format, which binds it to this DID and role, so
+        nobody without the passphrase could have planted it. An unauthenticated
+        (plaintext or older-format) pending file is moved aside, never deleted,
+        and a fresh key is used: adopting it would let anyone able to write to
+        the recovery directory choose this identity's next key, while keeping
+        the file means that if the registry did commit to it after all (a
+        lagging read), the key can still be recovered by hand.
+
+        A new pending file is created exclusively; if one appears concurrently,
+        this call stops. Two racing rotations of one identity can't both be
+        accepted: the registry takes only one event per sequence number.
         """
         passphrase = passphrase if passphrase is not None else _default_passphrase()
         _, _, ppath = self._paths(directory, name, recovery_dir)
@@ -281,14 +309,27 @@ class AgentIdentity:
             if (remote.seq != self.state.seq or remote.key != self.current_key.public_multikey
                     or remote.next != key_commitment(self.recovery_key.public_multikey)):
                 raise RuntimeError("registry state diverged from the local key files; refusing to rotate")
-            new_next = pending  # not applied: retry with the same saved key
-        else:
-            new_next = KeyPair.generate()
+            if self._pending_authenticated:
+                new_next: Signer = pending  # not applied: retry with the same (authentic) saved key
+            else:
+                aside = ppath.with_name(f"{ppath.name}.unadopted-{int(time.time())}")
+                log.warning("%s: pending rotation key file is not authenticated (unencrypted or an older format) and "
+                            "the registry hasn't committed to it; moved it to %s and using a fresh key", name, aside)
+                os.replace(ppath, aside)
+                self.pending_next_key = None
 
-        event = self.prepare_rotation(new_next)
         if self.pending_next_key is None:
-            write_key_file(ppath, did=self.did, role="pending-next", key=new_next, extra={}, passphrase=passphrase)
+            new_next = KeyPair.generate()
+            self.prepare_rotation(new_next)
+            try:
+                write_key_file(ppath, did=self.did, role="pending-next", key=new_next, extra={},
+                               passphrase=passphrase, overwrite=False)
+            except FileExistsError:
+                self._pending = None
+                raise RuntimeError(f"{ppath} appeared while rotating: another rotation of this identity is in "
+                                   "progress") from None
             self.pending_next_key = new_next
+        event = self.prepare_rotation(new_next)
         registry.submit(self.did, event)
         self.commit(registry.verified_state(self.did))
         self.pending_next_key = None
@@ -346,6 +387,46 @@ def _did_path(did: str) -> str:
     if not is_agent_did(did):
         raise ValueError(f"not a did:agent identifier: {did[:80]!r}")
     return quote(did, safe=":")
+
+
+def controller_keys_via(registry: Any, did: str) -> set:
+    """Every key `did` has ever held, from its verified log (empty if the registry doesn't know it).
+
+    Trusting embedded controller signatures is fine *here*: a forged controller
+    signature can only add a deactivation to the controller's own log, and a
+    deactivation adds no key to a history. Rotations need the pre-committed key.
+    """
+    own = getattr(registry, "controller_keys", None)
+    if own is not None:
+        return own(did)
+    try:
+        events = registry.log(did)
+    except RegistryError as e:
+        if e.status == 404:
+            return set()
+        raise
+    st = verify_log(events)
+    if st.did != did:
+        raise ValueError("registry returned a log for a different DID")
+    return {k for _, k in st.history}
+
+
+def bound_controller_check(registry: Any):
+    """A ControllerKeyCheck that only accepts keys the controller has actually held.
+
+    The default for `verify_log` checks a controller's signature against the key
+    embedded in the event, which a dishonest registry could fabricate to forge a
+    kill-switch deactivation (or a controller relationship). Relying parties use
+    this check instead.
+    """
+    cache: dict = {}
+
+    def check(controller: str, key: str) -> bool:
+        if controller not in cache:
+            cache[controller] = controller_keys_via(registry, controller)
+        return key in cache[controller]
+
+    return check
 
 
 class RegistryClient:
@@ -441,22 +522,35 @@ class RegistryClient:
             raise RegistryError(502, "registry returned a malformed log")
         return events
 
-    def controlled_agents(self, did: str) -> list:
+    def controlled_agents(self, did: str, max_agents: int = 100_000) -> list:
+        """Every agent controlled by `did`, following pagination. A registry that keeps
+        returning pages (or loops `next`) can't make this run forever: it stops with
+        an error after `max_agents` entries or a repeated cursor."""
         out: list = []
         after: Optional[str] = ""
+        seen: set = set()
         while True:
             page = self._get(f"/v1/identities/{_did_path(did)}/agents", params={"after": after, "limit": 1000})
-            out += page["agents"]
+            agents = page.get("agents") if isinstance(page, dict) else None
+            if not isinstance(agents, list):
+                raise RegistryError(502, "registry returned a malformed page")
+            out += agents
             after = page.get("next")
             if not after:
                 return out
+            if after in seen or len(out) > max_agents:
+                raise RegistryError(502, "registry pagination did not terminate")
+            seen.add(after)
 
     def list_identities(self, after: str = "", limit: int = 100) -> dict:
         return self._get("/v1/identities", params={"after": after, "limit": limit})
 
     def verified_state(self, did: str) -> IdentityState:
-        """Fetch the full event log and replay it locally — trusts no one."""
-        state = verify_log(self.log(did))
+        """Fetch the full event log and replay it locally — trusts no one.
+
+        Controller signatures are checked against the controller's own key history.
+        """
+        state = verify_log(self.log(did), bound_controller_check(self))
         if state.did != did:
             raise ValueError("registry returned a log for a different DID")
         return state
@@ -625,7 +719,7 @@ class RegistryKeyResolver:
 
     def _fetch_verified(self, did: str) -> Optional[tuple]:
         events = self.registry.log(did)
-        st = verify_log(events)
+        st = verify_log(events, bound_controller_check(self.registry))
         if st.did != did:
             raise ValueError("registry returned a log for a different DID")
         self.pins.check_and_update(did, events)
