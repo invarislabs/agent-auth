@@ -8,9 +8,11 @@ There are two sides to integrating AgentAuth:
 Both use the same package:
 
 ```bash
-pip install "agentauth[server]"          # [server] adds FastAPI + uvicorn
-pip install "agentauth[server,redis]"    # + shared replay cache and budgets for several replicas
+pip install "invaris-agentauth[server]"          # [server] adds FastAPI + uvicorn
+pip install "invaris-agentauth[server,redis]"    # + shared replay cache and budgets for several replicas
 ```
+
+The PyPI name is `invaris-agentauth`; the import name is `agentauth`. The unrelated PyPI project `agentauth` provides the same import name, so don't install both.
 
 ---
 

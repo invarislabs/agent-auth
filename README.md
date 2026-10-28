@@ -158,12 +158,23 @@ def purchase(body: dict, agent = Depends(require("payments.buy", amount=price, u
 
 Amounts are integers in the smallest unit (such as cents); floats are never signed.
 
+## Install
+
+```bash
+pip install invaris-agentauth                      # SDK and CLI
+pip install "invaris-agentauth[server]"            # + the registry server (FastAPI, uvicorn)
+pip install "invaris-agentauth[server,redis]"      # + shared replay cache and budgets for several replicas
+docker pull ghcr.io/invarislabs/agent-auth:latest  # the registry image
+```
+
+The package is published on PyPI as **`invaris-agentauth`**. You import it as `agentauth` and the command is `agentauth`. The PyPI project named `agentauth` is unrelated. Don't install both: they provide the same import name.
+
 ## Quick start
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-python -m pytest                        # ~290 tests; Redis/PostgreSQL ones skip unless configured:
+python -m pytest                        # ~460 tests; Redis/PostgreSQL ones skip unless configured:
 # AGENTAUTH_TEST_REDIS_URL=redis://localhost:6379/0 \
 # AGENTAUTH_TEST_POSTGRES_URL=postgresql://postgres@localhost/agentauth_test python -m pytest
 

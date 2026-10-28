@@ -19,12 +19,12 @@ How to deploy the registry, run relying services safely at scale, and manage key
 |---|---|---|---|
 | `agentauth serve` | SQLite file | none (one process) | development, pilots, small single-host installs |
 | `docker compose up` (this repo) | PostgreSQL | Redis | a complete production-shaped stack on one host |
-| Your orchestrator, image from `Dockerfile` | PostgreSQL | Redis | several registry replicas behind a load balancer |
+| Your orchestrator, with the published image `ghcr.io/invarislabs/agent-auth` (or one built from `Dockerfile`) | PostgreSQL | Redis | several registry replicas behind a load balancer |
 
 ### Single process
 
 ```bash
-pip install "agentauth[server]"
+pip install "invaris-agentauth[server]"
 agentauth db migrate --database-url sqlite:////var/lib/agentauth/agentauth.db
 AGENTAUTH_DATABASE_URL=sqlite:////var/lib/agentauth/agentauth.db \
 AGENTAUTH_AUDIENCES=registry.example.com \
@@ -62,6 +62,8 @@ GRANT SELECT ON schema_migrations TO agentauth_app;
 `Dockerfile` builds a two-stage image. Dependencies, including the setuptools build backend, are installed from `deploy/requirements.lock` **with hash checking**. The package is built with `--no-build-isolation --no-index`, so nothing unhashed is downloaded. The app runs as UID 10001, data lives in `/data`, and the container healthcheck calls `/readyz`. For bit-for-bit reproducible builds, also pin the base image by digest (`FROM python:3.15-slim-bookworm@sha256:…`); Dependabot keeps pinned digests current.
 
 The registry serves no `/docs`, `/redoc` or `/openapi.json`: the API is specified in [protocol.md §7](protocol.md#7-registry-http-api).
+
+Each release publishes the image to GitHub's container registry as `ghcr.io/invarislabs/agent-auth:<version>` and `:latest`. Pin a version (or a digest) in production. To build it yourself instead:
 
 ```bash
 docker build -t agentauth-registry .
