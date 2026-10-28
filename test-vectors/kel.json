@@ -1,0 +1,1165 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "kel.json",
+  "cases": [
+    {
+      "name": "inception",
+      "description": "a single inception event",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+        "seq": 0,
+        "active": true,
+        "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+        "kid": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf#key-0",
+        "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+        "controller": null,
+        "last_digest": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq"
+      }
+    },
+    {
+      "name": "two_rotations",
+      "description": "inception followed by two rotations to the pre-committed keys",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "VJmZUz60Np6wVAOYLvfe0DSqbqoJ7zlKo4kuARrDe6iuk-WD_gNLBCwFDcycYOO63PyMpnYzHBf-zwAxHJYPDQ"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 2,
+            "prev": "zQmRUjpx3Hmp8rjD6DSdHZK2z8AxLBDc46UEqfrx3w1842N",
+            "key": "z6Mkr1ouW91SJM7hcpgHaLpZAWU7sFtNa7uZmkoKW5oRfPXN",
+            "next": "zQmS7z1jDcc47EevqrtULeynZcbM7devMzX3uMkRNCZCeNQ",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "pDtbSJTElD-zynk-5aQ9Cm2TO60OdVOubShpRyBYjkDmknMqId5lf05P6U4Om6pPXamRZKJFUHIbw_zS9op6Aw"
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+        "seq": 2,
+        "active": true,
+        "key": "z6Mkr1ouW91SJM7hcpgHaLpZAWU7sFtNa7uZmkoKW5oRfPXN",
+        "kid": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf#key-2",
+        "next": "zQmS7z1jDcc47EevqrtULeynZcbM7devMzX3uMkRNCZCeNQ",
+        "controller": null,
+        "last_digest": "zQmS1MAgwDUDGf2678tZBpH3UysL1LUrYYkzBwWz8FGQHdS"
+      }
+    },
+    {
+      "name": "self_deactivation",
+      "description": "deactivated with the pre-committed recovery key",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "VJmZUz60Np6wVAOYLvfe0DSqbqoJ7zlKo4kuARrDe6iuk-WD_gNLBCwFDcycYOO63PyMpnYzHBf-zwAxHJYPDQ"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 2,
+            "prev": "zQmRUjpx3Hmp8rjD6DSdHZK2z8AxLBDc46UEqfrx3w1842N",
+            "key": "z6Mkr1ouW91SJM7hcpgHaLpZAWU7sFtNa7uZmkoKW5oRfPXN",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "seUrZfz9Kw66nSNfecDDhw-FQ8F8ZL40VRYerhZZcoh4NhfADE8Bu_KfrQvu-xccyaUQyRkU0mcRcnOtdT4rAw"
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+        "seq": 2,
+        "active": false,
+        "key": null,
+        "kid": null,
+        "next": null,
+        "controller": null,
+        "last_digest": "zQmQHqBcmfSYTFMCk4LJZXsq8ZMwcNXajd76mP7waMPEnG1"
+      }
+    },
+    {
+      "name": "controlled_inception",
+      "description": "inception countersigned by a controller",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6MkmtSw7jRrE73nEN2YKsyrcMKUkUpda5a8weFeBvCbriD3",
+            "next": "zQmcxxHVkTdsbQUoHwhrdpNj42md6wB51xDASi5a6aACJS8",
+            "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+            "meta": {
+              "name": "worker"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi"
+          },
+          "signer": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+          "sig": "JLAw_2uAJ23BChAhEcWuVlWz2AuAuxZsADdGq3UL0dQUHYsngCbo-yJuT8U-iJ0LUq4rzS6NxH70zIeQnCzGDg",
+          "controller_proof": {
+            "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+            "sig": "gyK_yFFPCtO_N43x_nJwng5uErfZMB49XlVFaCaQdXsLkQjyr7nneKgqwhphcQJxxuFxL3uL3iGV2mFdgwF3Cw"
+          }
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+        "seq": 0,
+        "active": true,
+        "key": "z6MkmtSw7jRrE73nEN2YKsyrcMKUkUpda5a8weFeBvCbriD3",
+        "kid": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi#key-0",
+        "next": "zQmcxxHVkTdsbQUoHwhrdpNj42md6wB51xDASi5a6aACJS8",
+        "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+        "last_digest": "zQmZCnGFkJ6M1mCiRzR9trzTi9v1csSoNEu4jimfEZq1sFf"
+      }
+    },
+    {
+      "name": "controller_deactivation",
+      "description": "deactivated by its controller's key",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6MkmtSw7jRrE73nEN2YKsyrcMKUkUpda5a8weFeBvCbriD3",
+            "next": "zQmcxxHVkTdsbQUoHwhrdpNj42md6wB51xDASi5a6aACJS8",
+            "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+            "meta": {
+              "name": "worker"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi"
+          },
+          "signer": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+          "sig": "JLAw_2uAJ23BChAhEcWuVlWz2AuAuxZsADdGq3UL0dQUHYsngCbo-yJuT8U-iJ0LUq4rzS6NxH70zIeQnCzGDg",
+          "controller_proof": {
+            "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+            "sig": "gyK_yFFPCtO_N43x_nJwng5uErfZMB49XlVFaCaQdXsLkQjyr7nneKgqwhphcQJxxuFxL3uL3iGV2mFdgwF3Cw"
+          }
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+            "seq": 1,
+            "prev": "zQmZCnGFkJ6M1mCiRzR9trzTi9v1csSoNEu4jimfEZq1sFf",
+            "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+          "sig": "qDVT4cuYn1J5l_vEuA-TiFL1nclnkR0Q2wwQWcf6vMQiywqxS_D3J-q9uBTaNLJfSLsWdjkWkRz4jc-hXYB9AA"
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+        "seq": 1,
+        "active": false,
+        "key": null,
+        "kid": null,
+        "next": null,
+        "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+        "last_digest": "zQmdpTgx7kupJbq4KEXJoztjXdmwS3TcSX1qqxriR7K6pYS"
+      }
+    },
+    {
+      "name": "controller_log",
+      "description": "the controller's own log (for verifiers that bind controller keys)",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+            "next": "zQmSvacR59Vno9eooZbyGANiLqqe8zXynvsVPbJ56EjsVbK",
+            "controller": null,
+            "meta": {
+              "name": "owner"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia"
+          },
+          "signer": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+          "sig": "eNCcTwl6iPPNC5-GFHt-XAFjUq-XbY5hftQTw7l0MnBBQd6x85CAnxgB-FghiLia1y41aEzaNS0m5hYvlCJYAQ"
+        }
+      ],
+      "valid": true,
+      "state": {
+        "did": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+        "seq": 0,
+        "active": true,
+        "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+        "kid": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia#key-0",
+        "next": "zQmSvacR59Vno9eooZbyGANiLqqe8zXynvsVPbJ56EjsVbK",
+        "controller": null,
+        "last_digest": "zQmaXgFVccN7HLxMRi9VzBCVXmtYeBcsWJorfGW2t3ywP7a"
+      }
+    },
+    {
+      "name": "did_mismatch",
+      "description": "body edited after the DID was derived",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "evil"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_bad_signature",
+      "description": "inception signed with a key other than body.key",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "tnu1J7bm0T1tlZlf3fLkWpPywtKRMyZ0cPOFup1g1DoD_ugqmfxrRPqJuMRyiV3XvVAyMZQZ5tYdVWcpc6N4DA"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_unknown_field",
+      "description": "unknown body field (re-derived DID and re-signed)",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "extra": "x",
+            "did": "did:agent:QmaiGppTJMYZxYxQw3P8az1NUtEKQfNkLBg8KnHPso1qZS"
+          },
+          "signer": "did:agent:QmaiGppTJMYZxYxQw3P8az1NUtEKQfNkLBg8KnHPso1qZS",
+          "sig": "2XCiAN-beyUm5C22J1E_qDI93yOvul41CIlVmClnW3I_NwyLgrQBGGQsLExlcWa1Wo4PYewc3eHjbteQP80DAA"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_bad_ts",
+      "description": "ts not in YYYY-MM-DDThh:mm:ssZ form",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15 08:00:00",
+            "did": "did:agent:QmNs8vGVQ9JTGsQ4vRMHbNvorhx3FPi5AMh9FYmwJntS8D"
+          },
+          "signer": "did:agent:QmNs8vGVQ9JTGsQ4vRMHbNvorhx3FPi5AMh9FYmwJntS8D",
+          "sig": "eaa6bOURw1nHjC_DZm3jZnjyyXLdDHF4UgEDf0OGM7ZrYDAdz_yGPL2rpJKUn0hxwfbR1_LPDVbIZAYSuJE4BA"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_bad_next",
+      "description": "next is not a well-formed digest",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "znotadigest",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmTdrqGyg7bwjjC1FduGGQKy1k9hDsf4WtuipqzuXmHpYG"
+          },
+          "signer": "did:agent:QmTdrqGyg7bwjjC1FduGGQKy1k9hDsf4WtuipqzuXmHpYG",
+          "sig": "6C40dHYS-J-iAcRGNfUoQNHIe3RW5AZuzAMq5ixqWsaEtzwv6nGB4I7YOq16NVLjGh2ln9UazKs9CQ-R0ocjAg"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_float",
+      "description": "floats are not allowed in signed payloads",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "weight": 1.5
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_meta_too_deep",
+      "description": "meta nested more than 16 levels",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "a": {
+                "a": {
+                  "a": {
+                    "a": {
+                      "a": {
+                        "a": {
+                          "a": {
+                            "a": {
+                              "a": {
+                                "a": {
+                                  "a": {
+                                    "a": {
+                                      "a": {
+                                        "a": {
+                                          "a": {
+                                            "a": {
+                                              "a": {}
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmS2bP2WCbEaLVPqA4AZ5HkM9JFjWkMhzeGADWoDrEXtTN"
+          },
+          "signer": "did:agent:QmS2bP2WCbEaLVPqA4AZ5HkM9JFjWkMhzeGADWoDrEXtTN",
+          "sig": "4rU5kswgRs0vVAjCqI_08OKXwDF0eYoyYcUbbEw_ZHdAFJe-K9-iBRuzilvufHSODm2jgB1Umdmh1Vnh4IZVDw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_noncanonical_sig",
+      "description": "padded signature encoding",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw="
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "missing_controller_proof",
+      "description": "controller named but no countersignature",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6MkmtSw7jRrE73nEN2YKsyrcMKUkUpda5a8weFeBvCbriD3",
+            "next": "zQmcxxHVkTdsbQUoHwhrdpNj42md6wB51xDASi5a6aACJS8",
+            "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+            "meta": {
+              "name": "worker"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi"
+          },
+          "signer": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+          "sig": "JLAw_2uAJ23BChAhEcWuVlWz2AuAuxZsADdGq3UL0dQUHYsngCbo-yJuT8U-iJ0LUq4rzS6NxH70zIeQnCzGDg"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "proof_without_controller",
+      "description": "controller_proof on an inception with no controller",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw",
+          "controller_proof": {
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+          }
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "unknown_envelope_field",
+      "description": "unknown envelope field",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw",
+          "extra": 1
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "stolen_current_key_rotation",
+      "description": "rotation signed by the current key instead of the pre-committed one",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmVHBaFbrmhhgoynkEiDfpkv6viustFxJkwCUjfQzDzTxA",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "Ib4PBr0O0A4lU-9bs3Rrtsb_0zOBoWokhBD7F0L-nDVTxNKOjPzDtyxo5t3DPWK96p5qdmRHSkwtVL7_WhmDDw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "rotation_bad_prev",
+      "description": "prev does not chain to the previous event",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmWdD9J1VEu5sVXRsKSUUi876AcB68pJBRW5LpzgduVyaW",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "yEUmTbY9Od34v6pLR9cpPFoZlXMZpyMifXWQRoPqvUnrrGF7oBF2z_kTL_u5eVw_d2x-ppLtua0wWhYmhF-FBg"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "rotation_bad_seq",
+      "description": "seq skips a number",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 2,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "7JKiWXrnZSY-KrPgh3dn-bXEzefSVEdO8twtBdBJxMwuIJRakQ9GzJoX03aoUD4a0RuXSCEcvVnm2YpSHhSVCQ"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "rotation_next_equals_key",
+      "description": "next commits to the key being revealed",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "zv23ohZH2EWjFot-ZdLEipobNVtUHap-v_VCYvQCe50Ok2NExNXC-KOtWLYwt4dU92MAsD2Cvqf26L3BwWy4Bw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "events_out_of_order",
+      "description": "events reordered",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 2,
+            "prev": "zQmRUjpx3Hmp8rjD6DSdHZK2z8AxLBDc46UEqfrx3w1842N",
+            "key": "z6Mkr1ouW91SJM7hcpgHaLpZAWU7sFtNa7uZmkoKW5oRfPXN",
+            "next": "zQmS7z1jDcc47EevqrtULeynZcbM7devMzX3uMkRNCZCeNQ",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "pDtbSJTElD-zynk-5aQ9Cm2TO60OdVOubShpRyBYjkDmknMqId5lf05P6U4Om6pPXamRZKJFUHIbw_zS9op6Aw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "VJmZUz60Np6wVAOYLvfe0DSqbqoJ7zlKo4kuARrDe6iuk-WD_gNLBCwFDcycYOO63PyMpnYzHBf-zwAxHJYPDQ"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "after_deactivation",
+      "description": "event after deactivation",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "WNbwS2lURlYvDLTsYB14au1XhZukF4cbrUKEwBRMjqgk1C_7BkG_HzR_6T5hvyXr44ej-Ao5ITRfLZyD7a0iBw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "VJmZUz60Np6wVAOYLvfe0DSqbqoJ7zlKo4kuARrDe6iuk-WD_gNLBCwFDcycYOO63PyMpnYzHBf-zwAxHJYPDQ"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "empty_log",
+      "description": "empty log",
+      "log": [],
+      "valid": false
+    },
+    {
+      "name": "starts_with_rotation",
+      "description": "first event is not an inception",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "rotation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkjgVuvH7mA6Z8XQLuXgkrDhSyEvbdJBFyRNSiWLVtHDSV",
+            "next": "zQmTdemTLYC4ddSrh7qHxvrEmeS44AuVrbQmg24fTdxttgE",
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "VJmZUz60Np6wVAOYLvfe0DSqbqoJ7zlKo4kuARrDe6iuk-WD_gNLBCwFDcycYOO63PyMpnYzHBf-zwAxHJYPDQ"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "deactivation_by_stranger",
+      "description": "deactivation signed by someone who is neither the agent's recovery key nor its controller",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6MkqKr9kosTYvG3c5DxSH4docj8uLK8kfkifoSpQwrX4C9B",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:111111111111111111111111111111111111111111111",
+          "sig": "gyFptmlebe0UyfEifw60ZpNJ0z2wTf0NOoyEzZiDmigc8Q1o5ghsdLSdkUxPq44f2zMAyw5se3TE_dVO-0MfCA"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "self_deactivation_with_current_key",
+      "description": "self-deactivation must use the recovery key",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+            "seq": 1,
+            "prev": "zQmRZghfyLNN5keQxGjG39awkPyzM2hMF5jmg93muaXhVHq",
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "KczESu8GXySxFzwSpKyMGVTIgGeW54Gc23AAgRSQk2bWARtjgPbyJAut4bEmF2oDURhEO11FZAOMWB-Cw2vpDw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_next_equals_key",
+      "description": "inception commits to its own current key",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmc7QsWCn3zXZfShoDyGiUvVhgN1yqHgB4UrWyYMn92f8v",
+            "controller": null,
+            "meta": {
+              "name": "researcher"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmWnzuwPhrKKpJqpoGpKJFk4XKW8opZYBozYohZct4sMf8"
+          },
+          "signer": "did:agent:QmWnzuwPhrKKpJqpoGpKJFk4XKW8opZYBozYohZct4sMf8",
+          "sig": "ixwPm-7Mul4ktPV0TBA7c8rgKxOq8nOxMR4DtIKOzEuNtE8dD6D3q2MS4gxEiEnIOPNxPakeo0unuyAIlv7bBg"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "inception_unsafe_int",
+      "description": "integer above 2**53-1 in a signed payload",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "n": 9007199254740992
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmZUjd8xy7koecZQ5S2kDup2yebt1APHFCzio5ajr7431a"
+          },
+          "signer": "did:agent:QmZUjd8xy7koecZQ5S2kDup2yebt1APHFCzio5ajr7431a",
+          "sig": "nC1y9bv6_jyZNXgAkvji1KnTHGx4Y2R8eXaLVAg69litaJZypMyc9bdBLF6zagtpx1_fi7kudT0SLy2RcOnzDA"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "event_too_deep",
+      "description": "event nested deeper than 24 levels (rejected before hashing)",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6Mkju17URCxbEVrUTPUZ2pLyVWgXWYHgwBv5zi4N2ydJkXJ",
+            "next": "zQmPbyv8AApz9FaxvdqmE6tKPcprGJ8MPt4aAaFDK6ebKQ4",
+            "controller": null,
+            "meta": {
+              "x": [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      [
+                                                                        [
+                                                                          []
+                                                                        ]
+                                                                      ]
+                                                                    ]
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf"
+          },
+          "signer": "did:agent:QmXG4jAyDkz54PwviB5tmpcG8YkZNyDkaywgJMGsLXSPEf",
+          "sig": "erNGUm6Psu9TM-7pjPfqyp5eIiuVNSVv79VyloAsWAl9XitcADROvTm_vQTC9_zYQ_NvvPhQc5GZ0yP5V5RyCw"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "name": "controller_deactivation_unbound_key",
+      "description": "deactivation claiming to be from the controller, signed by a key that is not in the controller's log; invalid once controller keys are bound to controller_log",
+      "log": [
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "inception",
+            "seq": 0,
+            "prev": null,
+            "key": "z6MkmtSw7jRrE73nEN2YKsyrcMKUkUpda5a8weFeBvCbriD3",
+            "next": "zQmcxxHVkTdsbQUoHwhrdpNj42md6wB51xDASi5a6aACJS8",
+            "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+            "meta": {
+              "name": "worker"
+            },
+            "ts": "2027-01-15T08:00:00Z",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi"
+          },
+          "signer": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+          "sig": "JLAw_2uAJ23BChAhEcWuVlWz2AuAuxZsADdGq3UL0dQUHYsngCbo-yJuT8U-iJ0LUq4rzS6NxH70zIeQnCzGDg",
+          "controller_proof": {
+            "key": "z6MkrbAkra6fXJA69g3o4L8n2rk9dj7gq4p1RVMfZJNMtuAg",
+            "sig": "gyK_yFFPCtO_N43x_nJwng5uErfZMB49XlVFaCaQdXsLkQjyr7nneKgqwhphcQJxxuFxL3uL3iGV2mFdgwF3Cw"
+          }
+        },
+        {
+          "body": {
+            "v": "agentauth/1",
+            "type": "deactivation",
+            "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+            "seq": 1,
+            "prev": "zQmZCnGFkJ6M1mCiRzR9trzTi9v1csSoNEu4jimfEZq1sFf",
+            "key": "z6MkqKr9kosTYvG3c5DxSH4docj8uLK8kfkifoSpQwrX4C9B",
+            "next": null,
+            "ts": "2027-01-15T08:00:00Z"
+          },
+          "signer": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+          "sig": "mbz9OdDBL01hk8WPBR2GO5IQdH--Jyqy15OolzyodfFb7f9fri2toYFSryodKrNmUA6qi5CYuv7ABIrL3_LFCg"
+        }
+      ],
+      "valid": true,
+      "valid_with_controller_binding": false,
+      "controller_log": "controller_log",
+      "state": {
+        "did": "did:agent:QmXS1L1JnZoPwXgvVb2XgiU6z9SRtBP2KDStgu5Nu9LzTi",
+        "seq": 1,
+        "active": false,
+        "key": null,
+        "kid": null,
+        "next": null,
+        "controller": "did:agent:QmNoAXq5tLiXXa9Upv7rYdKzYNJBQ1A7xDM6ghWSuGTfia",
+        "last_digest": "zQmdV3wFeiJ3cncaQsgPn3oShs7jhjKxMWicXQAjrKjeJTJ"
+      }
+    }
+  ]
+}

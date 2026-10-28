@@ -1,0 +1,488 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "requests.json",
+  "audiences": [
+    "api.example.com",
+    "localhost:8000"
+  ],
+  "max_skew": 120,
+  "keys": {
+    "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS": {
+      "key": "z6MkuSJC8htEePqzrxYgdAHvkjPJgGZMMNiCe9N9BLBNThTw",
+      "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+    },
+    "did:agent:QmcJzvPzBZDNYvoEbf78KEbQKxYGaH9QPp45U5LwMQSSYT": {
+      "key": "z6MkpkwNQQXupiVqHMRPxahntTrWtPvVqaDmTVVTEDTcoTf4",
+      "kid": "did:agent:QmcJzvPzBZDNYvoEbf78KEbQKxYGaH9QPp45U5LwMQSSYT#key-0"
+    }
+  },
+  "signing_string": [
+    {
+      "method": "post",
+      "audience": "API.Example.com",
+      "path": "/v1/search?q=agents",
+      "ts": "1800000000",
+      "nonce": "vector-nonce-0000000001",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "g",
+      "signing_string": "agentauth-request/1\nPOST\napi.example.com\n/v1/search?q=agents\n1800000000\nvector-nonce-0000000001\nzQmZr8Hk4K36B7h54DtUveXePYEtMx82WJdn6sNvn1ffpZY\nzQmc93iZAcxnchqUGxSuay8sUdEjMeG6oxtaMAtR7EvLhtL"
+    }
+  ],
+  "cases": [
+    {
+      "name": "valid_post",
+      "description": "a correctly signed POST",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "valid_get_no_body",
+      "description": "GET with an empty body",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"8_APEaHDl-bOU6Cy26UnIRTGHgerk3b7AxNKpLa49OzKHDdWIl3Hg7S6Oe3N266YXHi9GT_atDQ4tNGqbJo8DA\"",
+      "method": "GET",
+      "path": "/v1/me",
+      "body_b64": "",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "valid_percent_encoded_path",
+      "description": "the raw (still percent-encoded) path is what's signed",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"j9_FTU93Dsz5P_Zz4-nriwKWlSQt_y1N1vk2sIQCFNStdXHmZqphbHg3WVTz9Q70tTdCCqHnggikf28FFTuGDA\"",
+      "method": "GET",
+      "path": "/files/q3%20report.pdf?v=a%2Fb",
+      "body_b64": "",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "valid_with_port",
+      "description": "audience with an explicit port",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"localhost:8000\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"8xtS1bUfddh8v-kln1km8bgJRfHInoxVBOZ7OoNPm9WMw8cwyUI0mtbx4dr2iPMQ253u9Gy1xc3zZqlxb8MDDQ\"",
+      "method": "GET",
+      "path": "/x",
+      "body_b64": "",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "valid_with_grant_header",
+      "description": "the AgentGrant header value is covered",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"8EQODCtFs_VNezDL_pfuf5P2Sak8_ui_t5nkOh3M0_mlK4mtpp9l-26GUU1zt50mHIwyRyjRXUOVfD2VOKezBA\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "eyJ2IjoiZ3JhbnQifQ.c2ln",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "valid_method_case",
+      "description": "the verifier upper-cases the method",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "post",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "replay",
+      "description": "the same signed request twice: the second is a replay",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 2,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        },
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "ts_edge_of_window",
+      "description": "exactly max_skew (120 s) old is still accepted",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1799999880\",nonce=\"vector-nonce-0000000001\",sig=\"YUnj6accA7wWXIfR9dDAQEBmaV4rVQCWaP360Dm362Lr7T3HoQS09A77JenJIZZsaWd6v09PTpoZhnwjhZ0uDw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": true,
+          "did": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS",
+          "kid": "did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1"
+        }
+      ]
+    },
+    {
+      "name": "wrong_audience",
+      "description": "signed for a host the verifier doesn't serve",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"other.example.org\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"5s2qCK-ROFRQIUKifmUNwesgEP4glPZ5RiXKX-ou-v8BydXEJ5T8Cs62uhf47BnpPuS0TEkmvWGitMD8ksCFAw\"",
+      "method": "POST",
+      "path": "/v1/search",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "stale_timestamp",
+      "description": "121 s old",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1799999879\",nonce=\"vector-nonce-0000000001\",sig=\"8qNK7f71LJObBXLFeR2nUvVAj0HswFz3OzYdRXO71zhA3NQCR6ACFEcIXw1eHNfKu0wGQbVG_gw73C6SW318BQ\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "future_timestamp",
+      "description": "121 s in the future",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000121\",nonce=\"vector-nonce-0000000001\",sig=\"sgAlh5bDQAj0WkANTnn0MYzqz8EPhejP4auUTRI5cnprfgBYhQte58Zdq-AvsPM6d-69u3f1-tTPOJZq-ZurDw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "noncanonical_timestamp",
+      "description": "ts with a leading +",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"+1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "short_nonce",
+      "description": "nonce under 16 characters",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"tooshort\",sig=\"MjRxoNlPUBXZmnD3v_aexm28hko8DKD-f3Yqf0hOFYRCQ1_q2IzhUYw9s_GxKgT964Uj5reT5LbX6PRGgcoZBQ\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "duplicate_parameter",
+      "description": "a second did parameter appended",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\",did=\"did:agent:QmcJzvPzBZDNYvoEbf78KEbQKxYGaH9QPp45U5LwMQSSYT\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "missing_parameter",
+      "description": "no nonce parameter",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "wrong_scheme",
+      "description": "Bearer instead of AgentSig",
+      "now": 1800000000,
+      "authorization": "Bearer did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "kid_of_other_did",
+      "description": "kid that belongs to a different DID",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:QmcJzvPzBZDNYvoEbf78KEbQKxYGaH9QPp45U5LwMQSSYT#key-0\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "old_key",
+      "description": "signed with key-0 after the agent rotated to key-1",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-0\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"8iu624ZZiraEwNGdpKW6IU2tgkAI2SXdtQ-ZHMrMXOCzXBIKxMj3bId2WG5K25c19GIgQXGfRra_yq9R8l7oCg\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "unknown_agent",
+      "description": "DID the resolver doesn't know",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:1111111111111111111111111111111111111111111111\",kid=\"did:agent:1111111111111111111111111111111111111111111111#key-0\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "different_path",
+      "description": "verifier sees a different path",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/admin",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "different_query",
+      "description": "verifier sees a different query",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=other",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "different_method",
+      "description": "verifier sees a different method",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "DELETE",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "body_tampered",
+      "description": "body changed after signing",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiZXZpbCJ9",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "grant_header_swapped",
+      "description": "a different AgentGrant header than the one signed",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"7ieXgBDWGvM0iSa1DMyVtkpGsZkFGI-HF99nxnv1-s0QsgNXQjI3sLT1Of7_gthwfGuWhvbXusdvUMGAu4KRBw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "c.d",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "signature_padded",
+      "description": "padded signature encoding",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"ihaWX6NxsolyijVdlK0YB1_M_9nwXilXtV9iTTDlh-aq9DVniqGILnTtj1Hyh_aMARUdU5bd-yVGv3nVW_JXCw=\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    },
+    {
+      "name": "wrong_key",
+      "description": "signed by another agent's key",
+      "now": 1800000000,
+      "authorization": "AgentSig did=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS\",kid=\"did:agent:Qmbo7UzGTpq5TpdpoyBDfXxvjTTmWJezSXX6FirWDyv7jS#key-1\",aud=\"api.example.com\",ts=\"1800000000\",nonce=\"vector-nonce-0000000001\",sig=\"8A2ra9aVV-luyl0uctiIgjCP5y9dfTdVj4oQbOvO6xdbZjCIJp-J-wuIU8-YyF5D0jEZ_RKuarzY-jX4yHIIAw\"",
+      "method": "POST",
+      "path": "/v1/search?q=agents",
+      "body_b64": "eyJxIjoiYWdlbnRzIn0=",
+      "grants": "",
+      "repeat": 1,
+      "expect": [
+        {
+          "valid": false,
+          "status": 401
+        }
+      ]
+    }
+  ]
+}

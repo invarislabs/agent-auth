@@ -1,0 +1,162 @@
+{
+  "format": "agentauth-test-vectors/1",
+  "generated_by": "scripts/generate_test_vectors.py",
+  "file": "revocations.json",
+  "cases": [
+    {
+      "name": "valid",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": true
+    },
+    {
+      "name": "wrong_key",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6Mku7fdnDACM7gvm37obHJ5EyrmoD95b9f587Hh7mFh8J1k",
+      "valid": false
+    },
+    {
+      "name": "extra_field",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000,
+          "reason": "oops"
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "ts_float",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1.5
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "ts_bool",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": true
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "empty_grant_id",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "bad_issuer",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "not-a-did",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw"
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "padded_signature",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw="
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    },
+    {
+      "name": "extra_envelope_field",
+      "event": {
+        "body": {
+          "v": "agentauth-revocation/1",
+          "grant": "grant-0001",
+          "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+          "ts": 1800000000
+        },
+        "sig": "evzxKPJznfPeDlt8m6IN9ZjFif9MI6JPspDuACBH_Io3Np8iVX4TaDhqejaycxtnpoo57xufzyt7ofzZZnL8Dw",
+        "note": 1
+      },
+      "issuer_key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+      "valid": false
+    }
+  ],
+  "issuer_log": [
+    {
+      "body": {
+        "v": "agentauth/1",
+        "type": "inception",
+        "seq": 0,
+        "prev": null,
+        "key": "z6MkgoTVX4ekY4zi2kkVPb9HzQbRMzKsC7kqfj4ugeFLjaZC",
+        "next": "zQmNZrt1uFe5Umy5LBJDhqPnSgXBV8uXdbqAEEiNmUgxDKW",
+        "controller": null,
+        "meta": {},
+        "ts": "2027-01-15T08:00:00Z",
+        "did": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D"
+      },
+      "signer": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+      "sig": "3PQ-SFA7oH0O0WS89v3qQrfMUNDHUxKI1bZJo3x8cN2r3R20IyXc_qCMSlV9v00cNofrZUmYZ6jGDc8WTLW2CQ"
+    }
+  ],
+  "forged_proof": {
+    "body": {
+      "v": "agentauth-revocation/1",
+      "grant": "grant-0001",
+      "iss": "did:agent:QmcY5YG5ok85nMfptq31zHW2n3rXHqYTtTnnbDdaXZux3D",
+      "ts": 1800000000
+    },
+    "sig": "FFK64qvZyeknYJJ4epdZ7kSo-GWOYHo9UnHevbtCf9NZoStWLNOg9djd3iA-BJ3kpspWwVKJXx7AhmsMpvbNCw"
+  }
+}
