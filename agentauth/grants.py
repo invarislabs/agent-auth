@@ -31,6 +31,7 @@ import json
 import logging
 import re
 import secrets
+import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -59,7 +60,11 @@ _GRANT_FIELDS = {"v", "id", "iss", "kid", "sub", "scope", "aud", "nbf", "exp", "
 _OPTIONAL_GRANT_FIELDS = {"limits"}
 _REVOCATION_FIELDS = {"v", "grant", "iss", "ts"}
 _ID_RE = re.compile(r"\A[A-Za-z0-9_\-.:]{1,128}\Z")
-_AUD_RE = re.compile(r"\A[^\s,\"]{1,255}\Z")
+# host[:port]: printable ASCII without space, '"' or ','. ASCII-only keeps case-insensitive
+# comparison identical in every language (no Unicode case folding).
+_AUD_RE = re.compile(r"\A[\x21\x23-\x2b\x2d-\x7e]{1,255}\Z")
+_SCOPE_CHARS_RE = re.compile(r"\A[\x21-\x7e]{1,128}\Z")
+MAX_GRANT_DEPTH = 8  # JSON nesting of a grant body (limits -> spend -> value is depth 3)
 
 
 class GrantError(Exception):
@@ -78,7 +83,7 @@ class GrantError(Exception):
 
 
 def _valid_scope(s: str) -> bool:
-    if not isinstance(s, str) or not s or len(s) > 128 or any(c.isspace() for c in s):
+    if not isinstance(s, str) or not _SCOPE_CHARS_RE.match(s):
         return False
     return s == "*" or "*" not in s[:-1] and (not s.endswith("*") or s.endswith(".*"))
 
@@ -102,9 +107,16 @@ def _valid_audience(a: Any) -> bool:
     return isinstance(a, str) and _AUD_RE.match(a) is not None
 
 
+def _ascii_lower(s: str) -> str:
+    return s.translate(_ASCII_LOWER)
+
+
+_ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
+
 def audience_covers(parents: Iterable[str], children: Iterable[str]) -> bool:
-    parents = {p.lower() for p in parents}
-    return "*" in parents or all(c.lower() in parents for c in children)
+    parents = {_ascii_lower(p) for p in parents}
+    return "*" in parents or all(_ascii_lower(c) in parents for c in children)
 
 
 # --------------------------------------------------------------------------- #
@@ -137,18 +149,50 @@ class Grant:
 
     @classmethod
     def decode(cls, token: str) -> Grant:
+        """Parse one link. The payload must be exactly canonical_json(body) (protocol §4.2):
+        no duplicate keys, no floats, no alternative encodings that different parsers
+        could read differently."""
         try:
             b, s = token.strip().split(".")
-            body = json.loads(b64u_decode(b), parse_constant=_reject_constant)
+            raw = b64u_decode(b)
+            body = json.loads(raw, parse_constant=_reject_constant, object_pairs_hook=_no_duplicate_keys)
         except (ValueError, TypeError, RecursionError):
             raise GrantError("malformed grant", 400) from None
-        if not isinstance(body, dict):
+        if not isinstance(body, dict) or not _shape_ok(body, MAX_GRANT_DEPTH):
             raise GrantError("malformed grant", 400)
+        try:
+            canonical = canonical_json(body)
+        except (TypeError, ValueError):
+            raise GrantError("malformed grant: not canonical JSON (floats are not allowed)", 400) from None
+        if canonical != raw:
+            raise GrantError("malformed grant: payload is not canonical JSON", 400)
         return cls(body, s)
 
 
 def _reject_constant(name: str):
     raise ValueError(f"{name} is not valid JSON")
+
+
+def _no_duplicate_keys(pairs):
+    d = {}
+    for k, v in pairs:
+        if k in d:
+            raise ValueError(f"duplicate key {k!r}")
+        d[k] = v
+    return d
+
+
+def _shape_ok(obj: Any, limit: int) -> bool:
+    stack = [(obj, 1)]
+    while stack:
+        o, d = stack.pop()
+        if isinstance(o, (dict, list)):
+            if d > limit:
+                return False
+            stack.extend((v, d + 1) for v in (o.values() if isinstance(o, dict) else o))
+        elif isinstance(o, int) and not isinstance(o, bool) and not -MAX_SAFE_INT <= o <= MAX_SAFE_INT:
+            return False
+    return True
 
 
 @dataclass
@@ -224,7 +268,7 @@ def issue(
     if not scopes or len(scopes) > MAX_SCOPES or not all(_valid_scope(s) for s in scopes):
         raise GrantError(f"invalid scopes: {scopes}", 400)
     if not audiences or len(audiences) > MAX_AUDIENCES or not all(map(_valid_audience, audiences)):
-        raise GrantError("1-32 audiences (host[:port], no whitespace or commas) are required", 400)
+        raise GrantError("1-32 audiences (ASCII host[:port], no whitespace or commas) are required", 400)
     if not isinstance(depth, int) or isinstance(depth, bool) or not 0 <= depth <= MAX_CHAIN:
         raise GrantError(f"depth must be an integer between 0 and {MAX_CHAIN}", 400)
     if not is_agent_did(subject):
@@ -261,6 +305,9 @@ def issue(
             raise GrantError(f"delegated limits exceed the parent grant: {why}", 400)
         links, parent_id = list(parent.links), p.id
 
+    if limits.stateful and "*" in {_ascii_lower(a) for a in audiences}:
+        raise GrantError("budget, rate and use limits can't apply to audience '*': every service would "
+                         "count them separately; list the audiences explicitly", 400)
     body = {
         "v": VERSION,
         "id": new_grant_id(),
@@ -268,7 +315,7 @@ def issue(
         "kid": issuer_kid,
         "sub": subject,
         "scope": sorted(set(scopes)),
-        "aud": sorted({a.lower() for a in audiences}),
+        "aud": sorted({_ascii_lower(a) for a in audiences}),
         "nbf": nbf,
         "exp": exp,
         "depth": depth,
@@ -358,10 +405,12 @@ def check_grant_body(b: dict, i: int = 0) -> None:
         raise GrantError(f"link {i}: invalid scope")
     if not b["aud"] or len(b["aud"]) > MAX_AUDIENCES or not all(map(_valid_audience, b["aud"])):
         raise GrantError(f"link {i}: invalid audience")
+    if b["aud"] != sorted({_ascii_lower(a) for a in b["aud"]}) or b["scope"] != sorted(set(b["scope"])):
+        raise GrantError(f"link {i}: aud must be lower-case, and aud and scope sorted without duplicates")
     if not (0 <= b["nbf"] <= MAX_SAFE_INT and 0 <= b["exp"] <= MAX_SAFE_INT):
         raise GrantError(f"link {i}: nbf/exp out of range")
-    if b["depth"] < 0:
-        raise GrantError(f"link {i}: depth must be non-negative")
+    if not 0 <= b["depth"] <= MAX_SAFE_INT:
+        raise GrantError(f"link {i}: depth out of range")
     if b["parent"] is not None and not (isinstance(b["parent"], str) and _ID_RE.match(b["parent"])):
         raise GrantError(f"link {i}: bad parent id")
     if "limits" in b and not isinstance(b["limits"], dict):
@@ -379,6 +428,7 @@ class AuthorizedAgent:
     ledger: Optional[UsageLedger] = None
     charged: int = 0  # amount charged for this request (see GrantVerifier.enforce)
     link_expiry: dict = field(default_factory=dict)  # (iss, grant id) -> exp
+    _refund_lock: Any = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def allows(self, scope: str) -> bool:
         return any(scope_covers(s, scope) for s in self.scopes)
@@ -399,14 +449,15 @@ class AuthorizedAgent:
         would let a service bug (or a malicious caller-controlled amount) mint
         budget out of nothing.
         """
-        amount = self.charged if amount is None else amount
-        if not _is_int(amount) or amount < 0:
-            raise GrantError("refund amount must be a non-negative integer", 400)
-        if amount > self.charged:
-            raise GrantError(f"cannot refund {amount}: only {self.charged} was charged", 400)
-        if self.ledger is not None and amount:
-            self.ledger.refund([x for x in self.link_limits if x[1].stateful], amount)
-            self.charged -= amount
+        with self._refund_lock:
+            amount = self.charged if amount is None else amount
+            if not _is_int(amount) or amount < 0:
+                raise GrantError("refund amount must be a non-negative integer", 400)
+            if amount > self.charged:
+                raise GrantError(f"cannot refund {amount}: only {self.charged} was charged", 400)
+            if self.ledger is not None and amount:
+                self.ledger.refund([x for x in self.link_limits if x[1].stateful], amount)
+                self.charged -= amount
 
 
 def _accepts_kwarg(fn: Callable, name: str) -> bool:
@@ -426,6 +477,9 @@ class GrantVerifier:
         max_chain: int = MAX_CHAIN,
         ledger: Optional[UsageLedger] = None,
     ):
+        if revoked is None:
+            log.warning("GrantVerifier created without a revocation check: revoked grants will be accepted "
+                        "(pass revoked=RegistryRevocationChecker(...))")
         self.ledger = ledger if ledger is not None else UsageLedger()
         self.resolve_key = resolve_key
         self.root_policy = root_policy
@@ -461,7 +515,7 @@ class GrantVerifier:
         if len(chain.links) > self.max_chain:
             raise GrantError(f"delegation chain longer than {self.max_chain}")
         now = int(now if now is not None else time.time())
-        audience = audience.lower()
+        audience = _ascii_lower(audience)
 
         prev: Optional[Grant] = None
         prev_limits = Limits()
@@ -483,6 +537,8 @@ class GrantVerifier:
                 lim = g.limits
             except LimitError as e:
                 raise GrantError(f"link {i}: {e}") from None
+            if lim.stateful and "*" in g.aud:
+                raise GrantError(f"link {i}: budget, rate and use limits can't apply to audience '*'")
 
             if prev is None:
                 if g.parent is not None:

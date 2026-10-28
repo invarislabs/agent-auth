@@ -175,7 +175,7 @@ def test_tampered_grant_rejected(world):
     chain = w["human"].grant(w["agent"].did, ["tools.search"], [TOOLS])
     g = chain.links[0]
     body = copy.deepcopy(g.body)
-    body["scope"] = ["tools.*", "files.read"]
+    body["scope"] = ["files.read", "tools.*"]  # sorted, so only the signature can catch it
     forged = GrantChain([Grant(body, g.sig)])
     r = call(w, w["agent"], forged)
     assert r.status_code == 403 and "signature" in r.json()["detail"]
