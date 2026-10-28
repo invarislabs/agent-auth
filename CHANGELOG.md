@@ -24,6 +24,42 @@ Production hardening. **Wire formats and version strings are unchanged**; everyt
 - **Forced key refreshes** (a caller presenting a newer `kid`) could be used to make a service fetch from the registry on every request. Now limited to one per DID per second.
 - **Infrastructure failures surfaced as 500s** (or, for custom callbacks, propagated unpredictably). Every dependency failure during verification now fails closed with 503.
 
+### Internal security review (October 2026)
+
+An internal review of the protocol core, registry and SDK (**not an independent audit**; see [docs/security-audit-2026-10.md](docs/security-audit-2026-10.md) for all 41 findings). Every high and medium finding is fixed, each with a regression test or shared test vector.
+
+- **Controller signatures are bound to the controller's keys** when clients replay logs (`bound_controller_check` in `RegistryClient`, `RegistryKeyResolver` and `RegistryPool`). Before, anyone serving logs could append a "controller deactivation" signed by any key. `RegistryPool` also ignores members serving invalid logs instead of letting the longest one win.
+- **A planted pending-rotation key file is never adopted.** A pending key the registry hasn't committed to is reused only from an authenticated (v2-encrypted) file. Unencrypted ones are moved aside, not deleted. Plaintext key files are refused when a passphrase is set. New key files (`scrypt-aes256gcm-v2`) bind DID, role and public key into the encryption, and only known scrypt parameter sets are accepted.
+- **`AgentAuthMiddleware` checks WebSocket handshakes** (close 1008 unless signed or PUBLIC) and refuses unknown ASGI scope types. Rules see the route path under a mount (`req.path`; `req.full_path` keeps the prefix). MCP sessions are bound to the agent that opened them. Duplicate `Authorization`/`Host`/`AgentGrant` headers are refused. `scope["user"]` is the authenticated agent.
+- **Grant payloads must be exactly canonical JSON** (no duplicate keys, floats or alternative encodings), so two implementations can't read one token differently. Audiences and scopes are ASCII-only, and must be sorted, de-duplicated and (for `aud`) lower-cased. Budget, rate and use limits can't target audience `"*"`.
+- **Events are rejected before hashing** if nested deeper than 24 levels or holding integers beyond 2⁵³−1. An inception can't commit to its own key. DEL and C1 control characters are refused in limits.
+- **Registry:**
+  - Writes run off the event loop, re-check controller keys inside the write transaction, and map database lock/pool errors to 503 with `Retry-After`.
+  - Bodies must arrive within 10 s (408).
+  - The metric `method` label is bounded.
+  - `X-Forwarded-For` lines are joined and must be IP addresses; IPv6 is rate-limited per /64; the Redis rate limiter has a 250 ms budget.
+  - Failed SQLite commits roll back.
+  - Logs are capped at 10,000 events per identity.
+  - `/docs` and `/openapi.json` are off, and placeholder (`CHANGE-ME`) secrets are refused.
+- **CLI and SDK:**
+  - `agentauth init` never overwrites existing key files and saves keys before registering.
+  - Concurrent rotations of one identity are refused.
+  - Audit records sanitize hostile strings.
+  - `controlled_agents` pagination is bounded.
+  - `NonceCache` caps live nonces per agent.
+  - `refund()` is thread-safe.
+- **Supply chain and deployment:**
+  - The Docker build installs its build backend from the hashed lock (`--no-build-isolation --no-index`), and CI checks the lock against `pyproject.toml`. The lock is regenerated (fastapi 0.162.0).
+  - Compose binds the registry to 127.0.0.1, keeps the Redis password off the command line, and sets memory limits.
+
+**Compatibility:** grants from the reference SDK still verify, unless they use non-ASCII audiences or scopes, or stateful limits on audience `"*"`. A rotation interrupted before reaching the registry restarts with a fresh key if its pending file was unencrypted.
+
+### Added: TypeScript verifier and shared test vectors
+
+- **`ts/`**: `@invarislabs/agentauth`, a zero-dependency TypeScript verifier (WebCrypto) for key event logs, `AgentSig` requests, `AgentGrant` chains, limits and revocation proofs, with a registry client that binds controller keys, pins logs and refuses redirects. See [ts/README.md](ts/README.md).
+- **`test-vectors/`**: deterministic cross-implementation vectors generated from the Python reference (`scripts/generate_test_vectors.py`, `--check` in CI). Python (`tests/test_vectors.py`) and TypeScript both run them.
+- CI job for the TypeScript verifier; Dependabot for `ts/`.
+
 ### Fixed during pre-release review
 
 - A replay cache with a TTL shorter than the replay window (e.g. `max_skew=600` with the default 241 s Redis TTL) allowed replays after the nonce expired. `RequestVerifier` now refuses such a configuration.

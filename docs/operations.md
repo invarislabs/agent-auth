@@ -39,11 +39,29 @@ docker compose up -d
 curl -fsS http://localhost:8000/readyz
 ```
 
-The compose file runs a one-shot `migrate` job before the registry starts (with `AGENTAUTH_AUTO_MIGRATE=false` on the registry itself), runs the registry with three workers sharing Redis, persists Redis with AOF, and runs the registry container read-only, as a non-root user, with all capabilities dropped.
+The compose file:
+
+- runs a one-shot `migrate` job before the registry starts (`AGENTAUTH_AUTO_MIGRATE=false` on the registry itself);
+- runs the registry with three workers sharing Redis;
+- persists Redis with AOF;
+- runs the registry container read-only, as a non-root user, with all capabilities dropped;
+- publishes the registry on **127.0.0.1:8000 only**. Put a TLS-terminating proxy in front, or change the port mapping deliberately.
+
+It also passes the Redis password through a config file rather than the command line, and sets memory limits on every service. The registry refuses to start while any secret still contains the `CHANGE-ME` placeholder from `.env.example`. Use alphanumeric passwords (the Redis config line is quoted, but a `"` in the password would break it).
+
+**Database role.** The compose stack connects as the database owner, for simplicity. In production, run migrations as the owner and the registry as a role limited to `SELECT, INSERT, UPDATE` on its tables (it never deletes, and never needs DDL once migrated):
+
+```sql
+CREATE ROLE agentauth_app LOGIN PASSWORD '...';
+GRANT SELECT, INSERT, UPDATE ON events, identities, revocations TO agentauth_app;
+GRANT SELECT ON schema_migrations TO agentauth_app;
+```
 
 ### The image
 
-`Dockerfile` builds a two-stage image: dependencies are installed from `deploy/requirements.lock` **with hash checking**, the app runs as UID 10001, data lives in `/data`, and the container healthcheck calls `/readyz`. For bit-for-bit reproducible builds, also pin the base image by digest; Dependabot is configured to keep it current.
+`Dockerfile` builds a two-stage image. Dependencies, including the setuptools build backend, are installed from `deploy/requirements.lock` **with hash checking**. The package is built with `--no-build-isolation --no-index`, so nothing unhashed is downloaded. The app runs as UID 10001, data lives in `/data`, and the container healthcheck calls `/readyz`. For bit-for-bit reproducible builds, also pin the base image by digest (`FROM python:3.15-slim-bookworm@sha256:…`); Dependabot keeps pinned digests current.
+
+The registry serves no `/docs`, `/redoc` or `/openapi.json`: the API is specified in [protocol.md §7](protocol.md#7-registry-http-api).
 
 ```bash
 docker build -t agentauth-registry .
@@ -54,9 +72,11 @@ docker run --rm -e AGENTAUTH_DATABASE_URL=... agentauth-registry db migrate     
 Regenerate the lock after changing dependencies:
 
 ```bash
-uv pip compile pyproject.toml --extra server --extra redis --extra postgres \
+uv pip compile pyproject.toml deploy/build-requirements.in --extra server --extra redis --extra postgres \
    --python-version 3.12 --universal --generate-hashes -o deploy/requirements.lock
 ```
+
+CI re-runs this with the committed pins as preferences and fails if anything changes, so a `pyproject.toml` change without a regenerated lock can't merge.
 
 ## Configuration
 
@@ -125,7 +145,7 @@ Metrics:
 
 | Metric | Labels | Watch for |
 |---|---|---|
-| `agentauth_http_requests_total` | `method`, `route`, `status` | 5xx; spikes of 401 |
+| `agentauth_http_requests_total` | `method` (standard methods, others as `OTHER`), `route`, `status` | 5xx; spikes of 401; 408/413 (slow or oversized bodies) |
 | `agentauth_http_request_duration_seconds` | `route` | latency (histogram) |
 | `agentauth_registry_events_total` | `type`, `outcome` (`accepted`, `invalid`, `conflict`, `unauthorized`) | bursts of `invalid` (probing) or `conflict` (racing writers) |
 | `agentauth_registry_revocations_total` | `outcome` | |
@@ -193,7 +213,8 @@ Reads require every registry to answer by default (`read_quorum`); lower it to s
 - **Terminate TLS** at the proxy. AgentAuth doesn't need TLS for its own security, but request bodies and grants may be sensitive.
 - **Preserve the request target exactly.** Method, path and query are covered by request signatures, and verification uses the raw (still percent-encoded) path. Don't strip prefixes, normalize slashes or re-encode.
 - **Audience = the public `host[:port]`** clients use, not the internal upstream address. On the standard HTTPS port, that's the bare host name.
-- **Client addresses.** Set `AGENTAUTH_TRUSTED_PROXY_HOPS` to the number of proxies that append to `X-Forwarded-For`; otherwise every client looks like the proxy to the rate limiter.
+- **Client addresses.** Set `AGENTAUTH_TRUSTED_PROXY_HOPS` to the number of proxies that append to `X-Forwarded-For`; otherwise every client looks like the proxy to the rate limiter. The registry joins every `X-Forwarded-For` line, takes the address that many hops from the right, and falls back to the socket peer if that isn't a valid IP address. IPv6 clients are rate-limited per /64.
+- **Timeouts.** The registry gives a request body 10 seconds to arrive (then 408). Set the proxy's client timeouts no longer than that.
 - **Limit body sizes** at the proxy too; it's cheaper than reaching the app.
 
 ## Backups and integrity
@@ -213,7 +234,8 @@ Reads require every registry to answer by default (`read_quorum`); lower it to s
 | Recovery key (`<name>.recovery.json`) | **Somewhere else**: an operator's machine, a vault, or an HSM/KMS (any object implementing `Signer`) | Rotation and self-deactivation |
 | Pending key (`<name>.pending.json`) | Next to the recovery key, only during a rotation | Finishing an interrupted rotation |
 
-- **Encrypt at rest** with `AGENTAUTH_PASSPHRASE_FILE` pointing at a secret from your secrets manager. New files use scrypt (N=2¹⁷, r=8, p=1) + AES-256-GCM; v0.3 files (N=2¹⁵) still load.
+- **Encrypt at rest** with `AGENTAUTH_PASSPHRASE_FILE` pointing at a secret from your secrets manager. New files use scrypt (N=2¹⁷, r=8, p=1) + AES-256-GCM, with the file's DID, role and public key bound into the encryption (`scrypt-aes256gcm-v2`), so a file can't be moved into another identity's or role's place. Older files still load. When a passphrase is set, unencrypted key files are refused; re-save them to encrypt them (`AgentIdentity.load(dir, name, passphrase="").save(dir, name, passphrase=...)`).
+- **Keep key directories writable only by the agent's user.** Write access lets someone delete keys, even though planted files are never adopted as keys.
 - **Keep the recovery key off the agent host.** This is what makes pre-rotation meaningful.
 - **Give important agents a controller.** It's your kill switch if both keys are lost.
 
@@ -231,7 +253,7 @@ A principal's key sits at the root of many grant chains, so protect it more care
 agentauth --recovery-dir /secure/vault rotate researcher
 ```
 
-This writes the new next key to `/secure/vault/researcher.pending.json`, submits the rotation, replays the registry's log to confirm it, rewrites the key files and removes the pending file. If anything fails in between, run the same command again: it detects the pending file, checks what the registry has, and completes or retries the same rotation. Afterwards:
+This writes the new next key to `/secure/vault/researcher.pending.json` (created exclusively; a pending file appearing mid-rotation stops it, and the registry accepts only one event per sequence number), submits the rotation, replays the registry's log to confirm it, rewrites the key files and removes the pending file. If anything fails in between, run the same command again. If the registry already committed to the pending key, the rotation completes with it. If it didn't, the saved key is reused only if the pending file is encrypted with the identity's passphrase (the v2 format binds it to this DID and role, so it can't have been planted). An unencrypted pending file is moved aside to `<name>.pending.json.unadopted-<time>`, never deleted, and a fresh key is used. Afterwards:
 
 - Services refresh automatically when they see the new `kid`.
 - Grants this agent **issued** must be re-issued. Grants it **holds** are unaffected.

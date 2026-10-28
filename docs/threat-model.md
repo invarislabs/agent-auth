@@ -106,7 +106,9 @@ A requested resource containing a `.` or `..` path segment, a `*`, or control ch
 |---|---|
 | Invent an identity, or reassign a DID to other keys | DIDs are self-certifying. Services replay the full log (`RegistryKeyResolver(verify_logs=True)`, the default). |
 | Forge a rotation or deactivation | Every event must be signed, chained, and satisfy pre-rotation |
-| Squat on a controller relationship | The controller must countersign the inception with its current key |
+| Squat on a controller relationship | The controller must countersign the inception with its current key. The registry re-checks that key under the controller's write lock, in the same transaction as the insert, so a rotation can't race it. |
+| Append a "controller deactivation" signed by a key the controller never held | Clients bind controller signatures to the controller's own verified log (`bound_controller_check`, used by `RegistryClient.verified_state`, `RegistryKeyResolver` and `RegistryPool`; the TypeScript `RegistryClient` does the same). A signature-only check would accept it. |
+| One pool member serves an invalid but longer log, to win the longest-log merge | `RegistryPool` verifies each member's log before merging and ignores invalid ones |
 | Roll a log back (e.g. hide a deactivation) after a service has seen the newer version | The resolver pins the newest `(seq, digest)` it verified per DID (in memory, or persistently with `SQLitePins`). A shorter or different log raises `EquivocationError` and requests fail with 503. |
 | Withhold an event the service has never seen | With `RegistryPool`, events are written to several registries and reads take the longest consistent log, so *every* registry must withhold it. Every registry's revocation proof is checked, so one registry can't mask another's. |
 | Serve two different histories (fork) | Detected when one client sees both: across registries in a pool, or over time through pins |
@@ -118,7 +120,12 @@ A requested resource containing a `.` or `..` path segment, a `*`, or control ch
 
 | Attack | Mitigation |
 |---|---|
-| Large or slow request bodies | Bodies over the limit (16 KiB default) are refused before being read |
+| Large or slow request bodies | Bodies over the limit (16 KiB default) are refused before being read (413); a body that takes longer than 10 s to arrive is refused (408) |
+| Unbounded metric labels (arbitrary HTTP methods) | Methods outside the standard set are counted as `OTHER` |
+| Spoofed or junk `X-Forwarded-For` | Only trusted hops are read, all header lines are joined, and a value that isn't an IP address falls back to the socket peer. IPv6 clients are counted per /64. |
+| A slow or hung Redis stalling every request | The rate limiter runs off the event loop with a 250 ms budget, and fails open |
+| Database lock or pool exhaustion | Answered with 503 and `Retry-After`, not 500 |
+| Unbounded key event logs | At most 10,000 events per identity |
 | Flooding registration or reads | Per-address rate limits (shared through Redis when configured); optional registration token |
 | Making relying services hammer the registry by presenting fake newer `kid`s | Forced refreshes are limited to one per DID per second |
 | Crafted JSON (deep nesting, NaN, duplicate keys, wrong types) causing 500s | Strict parsing and type checks; fuzz-tested to never return 5xx |
@@ -153,6 +160,18 @@ After an issuer rotates, its outstanding grants stop verifying and have to be re
 
 Hash-chaining and signing detect edits, but truncating the newest entries is only detectable against a head digest exported elsewhere. Export `AuditLog.head()` to a separate system.
 
+### Multi-audience budgets are per service
+
+A grant listing several audiences with a budget, rate or use limit is enforced by each service's own ledger. Two services that don't share a ledger each allow the full limit. For that reason a stateful limit can't be combined with the audience `"*"` (any service at all); with explicit audiences, either point the services at one shared `RedisUsageLedger` or issue one grant per service.
+
+### Key directory write access
+
+Key files are protected against being read (mode 0600, optional encryption) and against being swapped between identities or roles (the encryption binds DID, role and public key). Someone who can *write* to the key directory can still delete files, or plant a plaintext key file when no passphrase is configured. The SDK never adopts a planted pending-rotation key the registry hasn't committed to, and refuses plaintext files when a passphrase is set, but keep key directories writable only by the agent's user.
+
+### WebSocket and streaming responses
+
+`AgentAuthMiddleware` authorizes a WebSocket at the handshake and an SSE stream when it opens. A grant that expires or is revoked during a long-lived connection doesn't end it. Bound connection lifetimes in the application if that matters.
+
 ### Same key under two DIDs
 
 The request signature doesn't cover the `did` parameter. If one key is the current key of two DIDs (only possible if its holder registered both), a request signed for one could be replayed as the other within the window. Don't reuse keys across identities; the SDK never does.
@@ -167,4 +186,4 @@ Signature checks use the `cryptography` library. Other comparisons (nonces, kids
 
 ### Not independently audited
 
-The design and code haven't had an external security review. Don't rely on AgentAuth to protect high-value assets until they have.
+The design and code have had an internal review ([October 2026](security-audit-2026-10.md)), but no independent, external security audit. An internal review by the people who wrote the code isn't a substitute. Don't rely on AgentAuth to protect high-value assets until an external audit has happened; [audit-brief.md](audit-brief.md) is the starting point for one.

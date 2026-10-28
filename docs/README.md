@@ -11,6 +11,9 @@
 | [Design decisions](design-decisions.md) | learn why things are the way they are, and what was traded off |
 | [Glossary](glossary.md) | look up a term (DID, KEL, pre-rotation, principal, attenuation, …) |
 | [Roadmap](roadmap.md) | see what's done and what's next |
+| [Security review, Oct 2026](security-audit-2026-10.md) | read the internal review's findings and fixes (not an independent audit) |
+| [Audit brief](audit-brief.md) | scope an external security audit |
+| [TypeScript verifier](../ts/README.md) | verify agents from JavaScript runtimes |
 | [Changelog](../CHANGELOG.md) · [Security policy](../SECURITY.md) | see what changed in each release; report a vulnerability |
 
 New here? Read **Why**, then **Architecture**, then follow the quick start in the [main README](../README.md).
