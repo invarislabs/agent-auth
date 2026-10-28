@@ -8,7 +8,7 @@
 | | |
 |---|---|
 | Date | October 2026 |
-| Code reviewed | `main` at `f4502ae` (v0.4.0, unreleased), plus the fixes on `feat/security-audit-and-ts-verifier` |
+| Code reviewed | `main` at `f4502ae` (v0.4.0, unreleased). The fixes were merged in pull request #21 (`e72def6`). |
 | Scope | Protocol core, registry service and deployment, SDK, ASGI/MCP middleware, CLI and key storage. The new TypeScript verifier was reviewed for differences from the Python reference. |
 | Out of scope | Third-party dependencies (they were scanned with tools, not reviewed), the host OS, TLS termination, and cryptographic primitives (Ed25519 and SHA-256 come from `cryptography` / WebCrypto) |
 | Result | 41 findings: 3 high, 14 medium, 21 low, 3 informational. Every high and medium finding is fixed. One low finding (S10) is documented for Python and fixed in the TypeScript client. One informational item (R11) is an accepted risk, and the others are documented. |

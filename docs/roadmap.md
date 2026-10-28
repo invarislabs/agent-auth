@@ -38,7 +38,7 @@ What's shipped, and what's next.
 ### Tooling
 - Compatibility with both `httpx` and `httpx2` clients
 
-### Unreleased: internal security review and TypeScript verifier
+### v0.4 (continued): security review and TypeScript verifier
 - **Internal security review** of the protocol core, the registry and the SDK, with every finding fixed and covered by a regression test ([security-audit-2026-10.md](security-audit-2026-10.md)). This was not an independent audit.
 - **TypeScript verifier** (`ts/`) for Node, Deno, Bun, browsers and edge runtimes, with no runtime dependencies. It verifies key event logs, signed requests, grant chains and revocation proofs, and its registry client binds controller keys and pins logs.
 - **Shared test vectors** (`test-vectors/`) that both implementations must pass, checked in CI
