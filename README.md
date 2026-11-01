@@ -4,6 +4,22 @@
 
 Cryptographic identities and delegated authority for autonomous AI agents. Built and maintained by [Invaris Labs](https://www.invarislabs.com/).
 
+<p align="center">
+  <img src="docs/assets/agentauth-demo.gif" width="800" alt="Terminal demo of examples/demo.sh: a human grants the agent 'researcher' tools.*, researcher delegates only tools.search to the sub-agent 'summarizer'. The summarizer's search call returns HTTP 200, its send-email call is refused with HTTP 403, its attempt to re-delegate is refused, and after the human revokes the root grant its search call returns HTTP 403.">
+</p>
+
+<p align="center"><sub>Real, unedited output of <code>bash examples/demo.sh</code> against v0.4.0 from PyPI: in-scope call → <b>HTTP 200</b>, out-of-scope call → <b>HTTP 403</b>, re-delegation refused, and after revoking the root grant → <b>HTTP 403</b>. Run the three commands below to reproduce it (about 10 s).</sub></p>
+
+## Quick start
+
+```bash
+git clone https://github.com/invarislabs/agent-auth && cd agent-auth
+pip install "invaris-agentauth[server]"   # keep [server]: without it the demo can't start its local registry and times out
+bash examples/demo.sh                     # starts a registry on :8000 and a demo tool service on :9000, then cleans up
+```
+
+Needs Python 3.10+ (in a virtualenv), `curl`, and free ports 8000 and 9000. Next: [documentation](docs/README.md) · [integration guide](docs/integration-guide.md) · [threat model](docs/threat-model.md).
+
 > **Status (v0.4):** hardened for production use — shared replay protection and budgets across replicas, PostgreSQL, migrations, health checks, metrics, defences against a dishonest registry, crash-safe key rotation — with adversarial, concurrency and end-to-end tests. **It has not had an independent security audit yet**; see the [threat model](docs/threat-model.md) for what that means and for the known gaps.
 
 Each agent gets a **self-certifying DID** backed by an Ed25519 keypair. It proves who it is by **signing every request**, so no API key or bearer token ever crosses the wire. Keys can be **rotated** safely, and an agent can be **killed** by itself or by the human or org that owns it. Anyone can check all of this without trusting the registry.
