@@ -5,7 +5,7 @@ Two backends share one interface:
 * `Store` / `SQLiteStore` — a single file (or ``:memory:``). One registry
   host; several worker processes on that host are fine.
 * `PostgresStore` — for running several registry replicas. Needs
-  ``pip install "agentauth[postgres]"``.
+  ``pip install "invaris-agentauth[postgres]"``.
 
 `open_store(url)` picks one from a URL (``sqlite:///path``, a bare path, or
 ``postgresql://…``).
@@ -477,7 +477,7 @@ class PostgresStore(_BaseStore):
             import psycopg
             from psycopg_pool import ConnectionPool
         except ImportError:  # pragma: no cover - depends on installed extras
-            raise RuntimeError('Postgres support needs psycopg: pip install "agentauth[postgres]"') from None
+            raise RuntimeError('Postgres support needs psycopg: pip install "invaris-agentauth[postgres]"') from None
         self._psycopg = psycopg
         self._pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, open=True,
                                     kwargs={"autocommit": True}, timeout=10.0)

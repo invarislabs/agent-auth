@@ -45,7 +45,7 @@ DEFAULT_COUNTER_TTL = 24 * 3600 + 3600
 def _client(url_or_client: Any):
     if isinstance(url_or_client, str):
         if _redis is None:
-            raise RuntimeError('Redis support needs the redis package: pip install "agentauth[redis]"')
+            raise RuntimeError('Redis support needs the redis package: pip install "invaris-agentauth[redis]"')
         return _redis.Redis.from_url(url_or_client, socket_timeout=2.0, socket_connect_timeout=2.0)
     return url_or_client
 

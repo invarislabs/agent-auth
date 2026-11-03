@@ -5,7 +5,7 @@
 Cryptographic identities and delegated authority for autonomous AI agents. Built and maintained by [Invaris Labs](https://www.invarislabs.com/).
 
 <p align="center">
-  <img src="docs/assets/agentauth-demo.gif" width="800" alt="Terminal demo of examples/demo.sh: a human grants the agent 'researcher' tools.*, researcher delegates only tools.search to the sub-agent 'summarizer'. The summarizer's search call returns HTTP 200, its send-email call is refused with HTTP 403, its attempt to re-delegate is refused, and after the human revokes the root grant its search call returns HTTP 403.">
+  <img src="https://raw.githubusercontent.com/invarislabs/agent-auth/main/docs/assets/agentauth-demo.gif" width="800" alt="Terminal demo of examples/demo.sh: a human grants the agent 'researcher' tools.*, researcher delegates only tools.search to the sub-agent 'summarizer'. The summarizer's search call returns HTTP 200, its send-email call is refused with HTTP 403, its attempt to re-delegate is refused, and after the human revokes the root grant its search call returns HTTP 403.">
 </p>
 
 <p align="center"><sub>Real, unedited output of <code>bash examples/demo.sh</code> against v0.4.0 from PyPI: in-scope call → <b>HTTP 200</b>, out-of-scope call → <b>HTTP 403</b>, re-delegation refused, and after revoking the root grant → <b>HTTP 403</b>. Run the three commands below to reproduce it (about 10 s).</sub></p>
@@ -18,9 +18,9 @@ pip install "invaris-agentauth[server]"   # keep [server]: without it the demo c
 bash examples/demo.sh                     # starts a registry on :8000 and a demo tool service on :9000, then cleans up
 ```
 
-Needs Python 3.10+ (in a virtualenv), `curl`, and free ports 8000 and 9000. Next: [documentation](docs/README.md) · [integration guide](docs/integration-guide.md) · [threat model](docs/threat-model.md).
+Needs Python 3.10+ (in a virtualenv), `curl`, and free ports 8000 and 9000. Next: [documentation](https://github.com/invarislabs/agent-auth/blob/main/docs/README.md) · [integration guide](https://github.com/invarislabs/agent-auth/blob/main/docs/integration-guide.md) · [threat model](https://github.com/invarislabs/agent-auth/blob/main/docs/threat-model.md).
 
-> **Status (v0.4):** hardened for production use — shared replay protection and budgets across replicas, PostgreSQL, migrations, health checks, metrics, defences against a dishonest registry, crash-safe key rotation — with adversarial, concurrency and end-to-end tests. **It has not had an independent security audit yet**; see the [threat model](docs/threat-model.md) for what that means and for the known gaps.
+> **Status (v0.4):** hardened for production use — shared replay protection and budgets across replicas, PostgreSQL, migrations, health checks, metrics, defences against a dishonest registry, crash-safe key rotation — with adversarial, concurrency and end-to-end tests. **It has not had an independent security audit yet**; see the [threat model](https://github.com/invarislabs/agent-auth/blob/main/docs/threat-model.md) for what that means and for the known gaps.
 
 Each agent gets a **self-certifying DID** backed by an Ed25519 keypair. It proves who it is by **signing every request**, so no API key or bearer token ever crosses the wire. Keys can be **rotated** safely, and an agent can be **killed** by itself or by the human or org that owns it. Anyone can check all of this without trusting the registry.
 
@@ -35,16 +35,16 @@ did:agent:QmfJZCnucexGhSZqdsAcKnFcv4RxyhPFMUiGjQmDRiMxux
 
 | | |
 |---|---|
-| [Why AgentAuth](docs/why.md) | The problem, and why API keys, OAuth and mTLS fall short for agents |
-| [Architecture](docs/architecture.md) | Components, request flow, how authority and limits propagate |
-| [Protocol spec](docs/protocol.md) | Wire formats and verification rules, for other implementations |
-| [Integration guide](docs/integration-guide.md) | Adding AgentAuth to an agent or a service |
-| [Threat model](docs/threat-model.md) | What's defended against, and the known gaps |
-| [Operations](docs/operations.md) | Deploying (Docker, PostgreSQL, Redis), configuration, monitoring, scaling, key management, incident response, upgrading |
-| [Design decisions](docs/design-decisions.md) | Why things are the way they are |
-| [TypeScript verifier](ts/README.md) | Verifying agents from Node, Deno, Bun, browsers or edge workers |
-| [Security review (Oct 2026)](docs/security-audit-2026-10.md) · [Audit brief](docs/audit-brief.md) | Internal review findings and fixes (not an independent audit); scope for external auditors |
-| [Glossary](docs/glossary.md) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md) | |
+| [Why AgentAuth](https://github.com/invarislabs/agent-auth/blob/main/docs/why.md) | The problem, and why API keys, OAuth and mTLS fall short for agents |
+| [Architecture](https://github.com/invarislabs/agent-auth/blob/main/docs/architecture.md) | Components, request flow, how authority and limits propagate |
+| [Protocol spec](https://github.com/invarislabs/agent-auth/blob/main/docs/protocol.md) | Wire formats and verification rules, for other implementations |
+| [Integration guide](https://github.com/invarislabs/agent-auth/blob/main/docs/integration-guide.md) | Adding AgentAuth to an agent or a service |
+| [Threat model](https://github.com/invarislabs/agent-auth/blob/main/docs/threat-model.md) | What's defended against, and the known gaps |
+| [Operations](https://github.com/invarislabs/agent-auth/blob/main/docs/operations.md) | Deploying (Docker, PostgreSQL, Redis), configuration, monitoring, scaling, key management, incident response, upgrading |
+| [Design decisions](https://github.com/invarislabs/agent-auth/blob/main/docs/design-decisions.md) | Why things are the way they are |
+| [TypeScript verifier](https://github.com/invarislabs/agent-auth/blob/main/ts/README.md) | Verifying agents from Node, Deno, Bun, browsers or edge workers |
+| [Security review (Oct 2026)](https://github.com/invarislabs/agent-auth/blob/main/docs/security-audit-2026-10.md) · [Audit brief](https://github.com/invarislabs/agent-auth/blob/main/docs/audit-brief.md) | Internal review findings and fixes (not an independent audit); scope for external auditors |
+| [Glossary](https://github.com/invarislabs/agent-auth/blob/main/docs/glossary.md) · [Roadmap](https://github.com/invarislabs/agent-auth/blob/main/docs/roadmap.md) · [Changelog](https://github.com/invarislabs/agent-auth/blob/main/CHANGELOG.md) · [Security](https://github.com/invarislabs/agent-auth/blob/main/SECURITY.md) | |
 
 ## Why not just API keys?
 
@@ -61,15 +61,15 @@ did:agent:QmfJZCnucexGhSZqdsAcKnFcv4RxyhPFMUiGjQmDRiMxux
 
 - **Teams building AI agents** that call internal or third-party APIs and want something safer than a shared API key: a per-agent identity, no secrets on the wire, and safe key rotation.
 - **Service and API owners** who accept calls from agents and need to know *which* agent is calling, *who* authorized it, and *what* it may do, with budgets, rate limits and resource limits enforced for them.
-- **MCP server authors** who want to require a grant per tool (see [MCP servers](docs/integration-guide.md#8-mcp-servers)).
+- **MCP server authors** who want to require a grant per tool (see [MCP servers](https://github.com/invarislabs/agent-auth/blob/main/docs/integration-guide.md#8-mcp-servers)).
 - **Platform and security teams** who need to answer "which agents can spend money, and on whose authority?", keep an audit trail, and switch off one agent, or everything it delegated, instantly.
-- **Developers of agent frameworks and tooling** who want a verifiable identity and delegation layer instead of inventing one. The [protocol spec](docs/protocol.md) is written so it can be implemented in other languages.
+- **Developers of agent frameworks and tooling** who want a verifiable identity and delegation layer instead of inventing one. The [protocol spec](https://github.com/invarislabs/agent-auth/blob/main/docs/protocol.md) is written so it can be implemented in other languages.
 
-**What you need:** Python 3.10 or newer. Running your own registry is optional for development (`agentauth serve`); a production deployment adds PostgreSQL and Redis (see [operations](docs/operations.md)).
+**What you need:** Python 3.10 or newer. Running your own registry is optional for development (`agentauth serve`); a production deployment adds PostgreSQL and Redis (see [operations](https://github.com/invarislabs/agent-auth/blob/main/docs/operations.md)).
 
-**Licensing:** AgentAuth is open source under the [Apache License 2.0](LICENSE), so individuals, companies and open-source projects can use, modify and redistribute it, including commercially, under that license's terms.
+**Licensing:** AgentAuth is open source under the [Apache License 2.0](https://github.com/invarislabs/agent-auth/blob/main/LICENSE), so individuals, companies and open-source projects can use, modify and redistribute it, including commercially, under that license's terms.
 
-**Not a fit (yet):** protecting high-value assets before an independent security audit, replacing human login (people still sign in as they do today), or acting as a general policy engine. See [Why AgentAuth](docs/why.md#what-it-isnt) and the [threat model](docs/threat-model.md).
+**Not a fit (yet):** protecting high-value assets before an independent security audit, replacing human login (people still sign in as they do today), or acting as a general policy engine. See [Why AgentAuth](https://github.com/invarislabs/agent-auth/blob/main/docs/why.md#what-it-isnt) and the [threat model](https://github.com/invarislabs/agent-auth/blob/main/docs/threat-model.md).
 
 ## Concepts
 
@@ -185,7 +185,7 @@ docker pull ghcr.io/invarislabs/agent-auth:latest  # the registry image
 
 The package is published on PyPI as **`invaris-agentauth`**. You import it as `agentauth` and the command is `agentauth`. The PyPI project named `agentauth` is unrelated. Don't install both: they provide the same import name.
 
-## Quick start
+## CLI walkthrough (from a clone)
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
@@ -234,6 +234,8 @@ agentauth sign summarizer POST http://127.0.0.1:9000/search --data '{"q":"hi"}' 
 agentauth revoke arunima <grant-id-from-inspect>
 
 # Limits: a 50 USD budget (max 20 USD per call, 10 calls/min) that can be split once
+agentauth init shopper --controller arunima
+agentauth init helper --controller shopper
 agentauth grant arunima shopper --scope 'payments.*' --aud 127.0.0.1:9000 --depth 1 \
           --budget 5000 --per-call 2000 --rate 10/60 -o pay.grant
 agentauth grant shopper helper --scope payments.buy --aud 127.0.0.1:9000 \
@@ -250,7 +252,7 @@ docker compose up -d            # PostgreSQL + Redis + migration job + registry 
 curl -fsS localhost:8000/readyz
 ```
 
-See [operations](docs/operations.md) for configuration, TLS proxies, metrics, backups, scaling and upgrading from v0.3.
+See [operations](https://github.com/invarislabs/agent-auth/blob/main/docs/operations.md) for configuration, TLS proxies, metrics, backups, scaling and upgrading from v0.3.
 
 ## Using it from code
 
@@ -325,7 +327,7 @@ def search(body: dict, agent = Depends(require_agent)):
 
 `RegistryKeyResolver` replays the full log by default, so a compromised registry can't slip in a different key, and pins what it has verified, so a registry that later rolls a log back (say, to hide a deactivation) is caught. If an agent presents a newer `kid` than the one cached, the resolver refreshes immediately, so a rotation doesn't cause a 30-second outage.
 
-**Any ASGI framework, and MCP servers**, via `agentauth.asgi.AgentAuthMiddleware`; `mcp_rules()` requires a grant scope per MCP tool (`mcp.tools.<name>`). See the [integration guide](docs/integration-guide.md#8-mcp-servers).
+**Any ASGI framework, and MCP servers**, via `agentauth.asgi.AgentAuthMiddleware`; `mcp_rules()` requires a grant scope per MCP tool (`mcp.tools.<name>`). See the [integration guide](https://github.com/invarislabs/agent-auth/blob/main/docs/integration-guide.md#8-mcp-servers).
 
 ## Registry API
 
@@ -370,14 +372,15 @@ test-vectors/        Cross-implementation test vectors, generated by scripts/gen
 scripts/             Test-vector generator
 deploy/              requirements.lock (hash-pinned, incl. the build backend) for the image
 docs/                Why, architecture, protocol spec, guides, threat model, decisions
-examples/            tool_service.py: a demo service with scoped, resource- and spend-limited endpoints
+examples/            tool_service.py: a demo service with scoped, resource- and spend-limited endpoints;
+                     demo.sh: the delegation demo shown at the top of this README
 tests/               Unit, adversarial, concurrency, Redis/PostgreSQL and end-to-end tests
 Dockerfile, docker-compose.yml, .env.example
 ```
 
 ## Threat model & limitations (v0.4)
 
-**Covered** (designed and tested against; see the [threat model](docs/threat-model.md)):
+**Covered** (designed and tested against; see the [threat model](https://github.com/invarislabs/agent-auth/blob/main/docs/threat-model.md)):
 - Forged identities and tampered logs
 - Theft of the current key alone (it can't rotate)
 - Request replay, whether across endpoints, across services, across replicas (with Redis) or over time
@@ -397,7 +400,7 @@ Dockerfile, docker-compose.yml, .env.example
 - Two implementations reading one token differently (grant payloads must be canonical; Python and TypeScript share test vectors)
 
 **Not yet covered:**
-- **No independent audit.** An internal review is done ([findings](docs/security-audit-2026-10.md)), but it isn't a substitute. Don't protect high-value assets with it until there has been an external audit.
+- **No independent audit.** An internal review is done ([findings](https://github.com/invarislabs/agent-auth/blob/main/docs/security-audit-2026-10.md)), but it isn't a substitute. Don't protect high-value assets with it until there has been an external audit.
 - **Theft of both keys.** An attacker holding both the current and recovery keys owns the identity; only a controller can kill it. Keep the recovery key offline or in an HSM/KMS (any `Signer` works; no KMS adapters ship yet).
 - **Split views against a single client.** A registry can still show a client that only ever talks to it a consistent but different history, or hide a revocation. Use several registries (`RegistryPool`); gossip or a transparency log is on the roadmap.
 - **Shared state must be configured.** The in-memory replay cache and ledger are only correct for a single process. `agentauth serve` enforces this; services you build must use the Redis backends when they run more than one process.
@@ -407,10 +410,10 @@ Dockerfile, docker-compose.yml, .env.example
 
 ## Roadmap
 
-Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3), and in v0.4 production hardening, an internal security review with every finding fixed, and a TypeScript verifier that shares test vectors with Python. Next: split-view detection via gossip or a transparency log, KMS/HSM signer adapters and threshold recovery, TypeScript signing and issuing, Kubernetes packaging, and an independent security review. See the full [roadmap](docs/roadmap.md).
+Shipped: identity (v0.1), delegated grants (v0.2), limits (v0.3), and in v0.4 production hardening, an internal security review with every finding fixed, and a TypeScript verifier that shares test vectors with Python. Next: split-view detection via gossip or a transparency log, KMS/HSM signer adapters and threshold recovery, TypeScript signing and issuing, Kubernetes packaging, and an independent security review. See the full [roadmap](https://github.com/invarislabs/agent-auth/blob/main/docs/roadmap.md).
 
 ## License
 
-AgentAuth is licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for copyright and trademark terms. Contributions are accepted under the [Contributor License Agreement](CLA.md).
+AgentAuth is licensed under the [Apache License, Version 2.0](https://github.com/invarislabs/agent-auth/blob/main/LICENSE). See [NOTICE](https://github.com/invarislabs/agent-auth/blob/main/NOTICE) for copyright and trademark terms. Contributions are accepted under the [Contributor License Agreement](https://github.com/invarislabs/agent-auth/blob/main/CLA.md).
 
 Copyright 2026 [Invaris Labs](https://www.invarislabs.com/).

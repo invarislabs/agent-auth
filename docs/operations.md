@@ -283,5 +283,10 @@ Deactivation is permanent. A deactivated DID can never be reused.
 - **FastAPI services:** requests to percent-encoded URLs now verify (they failed in v0.3).
 - **Agents:** use `identity.rotate_and_save(...)` (what the CLI's `rotate` now does) instead of `registry.rotate()` followed by `save()`.
 - **Python:** 3.10–3.14.
+- **Package name:** install from PyPI as `invaris-agentauth` (`pip install "invaris-agentauth[server,redis,postgres]"`). The import name and the `agentauth` command are unchanged. The PyPI project called `agentauth` is unrelated; uninstall it if you installed it by mistake, since both provide `import agentauth`.
+- **Grants:** audiences and scopes must be ASCII, and budgets, rates or use counts can't be put on audience `"*"`. Re-issue any grants that break those rules (they are refused with 403).
+- **Key files:** new files are encrypted in a new format (older files still load). With a passphrase set, unencrypted key files are refused: re-save them encrypted (see [key management](#for-agents)).
+- **ASGI middleware:** `req.path` no longer includes a mount prefix (`req.full_path` does), WebSocket handshakes now go through `rules`, and requests with duplicate `Authorization`, `Host` or `AgentGrant` headers get 400. Check rules written for a mounted app.
+- **Registry deployment:** `/docs` and `/openapi.json` are no longer served, the registry won't start with a `CHANGE-ME` secret from `.env.example`, and the compose file publishes port 8000 on 127.0.0.1 only.
 
 Formats are versioned (`agentauth/1`, `agentauth-grant/1`, …). Until 1.0, minor releases may change them; the changelog will say so, and relying services and agents should then be upgraded together.

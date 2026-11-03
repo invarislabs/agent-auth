@@ -181,11 +181,15 @@ def cmd_revoke(args, reg: RegistryClient):
 
 
 def cmd_serve(args, reg):
-    import uvicorn
+    try:
+        import uvicorn
 
+        from .server import create_app
+    except ImportError as e:
+        sys.exit(f'error: the registry server needs the server extra ({e.name} is missing): '
+                 'pip install "invaris-agentauth[server]"')
     from .config import Settings
     from .observability import configure_logging
-    from .server import create_app
 
     settings = Settings.from_env()
     if args.db:

@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/) (pre-1.0: minor releases may change formats, and will say so).
 
+## [Unreleased]
+
+### Fixed
+
+- Error messages that suggest installing an extra now name the PyPI package `invaris-agentauth` (they said `agentauth[redis]` / `agentauth[postgres]`).
+- `agentauth serve` without the `server` extra exits with an install hint instead of a traceback.
+
+### Documentation
+
+- README links and the demo GIF use absolute URLs, so they also work on the PyPI project page.
+- The second "Quick start" in the README is renamed "CLI walkthrough"; its limits example now creates the identities it uses.
+- Upgrade notes for v0.4 cover the PyPI name and the security review's behaviour changes.
+
 ## [0.4.0] — 2026-10-28
 
 Production hardening. **Wire formats and version strings are unchanged**; everything a v0.3 client produces is still accepted. Verification is stricter: malformed input that v0.3 accepted by accident is now rejected (see [protocol §9](docs/protocol.md#9-changes-in-v04)).
