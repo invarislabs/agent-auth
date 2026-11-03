@@ -2,5 +2,5 @@
 
 * `agentauth.backends.redis` — `RedisNonceCache` and `RedisUsageLedger`.
 
-Install with ``pip install "agentauth[redis]"``.
+Install with ``pip install "invaris-agentauth[redis]"``.
 """
